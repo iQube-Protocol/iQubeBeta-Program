@@ -1,0 +1,6 @@
+[submodule "apps/aigent-z"]
+	path = apps/aigent-z
+	url = https://github.com/iQube-Protocol/AigentZBeta
+[submodule "vendor/dvn"]
+	path = vendor/dvn
+	url = https://github.com/OracleKit/dvn
