@@ -1,0 +1,15 @@
+node_modules/
+.pnpm-store/
+pnpm-lock.yaml
+
+# Rust
+target/
+
+# Env & artifacts
+ops/env/.env.local
+ops/env/.env.stage
+ops/env/.env.prod
+ops/artifacts/
+
+# Mac
+.DS_Store
