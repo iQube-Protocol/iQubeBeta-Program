@@ -1,0 +1,24 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: latest
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+      - run: pnpm i --frozen-lockfile
+      - run: pnpm -w lint || true
+      - run: pnpm -w build
+      - run: pnpm -w test || true
+      - name: Rust
+        run: |
+          rustup toolchain install stable
+          rustup target add wasm32-unknown-unknown
+          cargo build --workspace
