@@ -28,33 +28,33 @@ flowchart TB
   subgraph CLIENTS[Client Apps]
     A1[Aigent Z Beta UI]
     A2[21 Sats Site & Marketplace]
-    A3[3rd-party dApps / Wallets]
+    A3[3rd party dApps and Wallets]
   end
 
   subgraph AZ[Aigent Z Services - Next.js/Edge]
     Z1[Registry API Gateway]
-    Z2[Auth & KYC Gateway]
+    Z2[Auth and KYC Gateway]
     Z3[Payments Proxy]
   end
 
   subgraph ICP[iQube Protocol Services - ICP]
-    C1[CrossChainService\n(LayerZero DVN on ICP)]
+    C1[CrossChainService - LayerZero DVN on ICP]
     C2[EVM RPC Canister]
-    C3[BTC Signer (tECDSA) & PSBT]
-    C4[Proof-of-State Anchor Publisher]
-    C5[IdentityRegistry (DIDQube/FIO)]
-    C6[StorageFabric (meta/blak/tokenQube)]
-    C7[Risk & Policy Engine]
+    C3[BTC Signer tECDSA and PSBT]
+    C4[Proof of State Anchor Publisher]
+    C5[IdentityRegistry - DIDQube and FIO]
+    C6[StorageFabric - metaQube blakQube tokenQube]
+    C7[Risk and Policy Engine]
   end
 
   subgraph EVM[EVM Chains]
-    E1[ERC-20/721/1155 Contracts]
-    E2[LayerZero Endpoints (OFT/ONFT/OSFT)]
-    E3[Treasury & Escrow]
+    E1[ERC-20 721 1155 Contracts]
+    E2[LayerZero Endpoints OFT ONFT OSFT]
+    E3[Treasury and Escrow]
   end
 
   subgraph BTC[Bitcoin]
-    B1[Ordinals / BRC-721]
+    B1[Ordinals and BRC-721]
     B2[Runes Policies]
     B3[BTC L1 Anchors]
   end

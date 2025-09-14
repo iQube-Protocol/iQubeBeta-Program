@@ -11,36 +11,36 @@ flowchart TB
 
   subgraph CLIENTS[Client Applications]
     A1[Aigent Z Beta UI]
-    A2[21 Sats Site & Marketplace]
-    A3[3rd-party Wallets/dApps]
+    A2[21 Sats Site and Marketplace]
+    A3[3rd party Wallets and dApps]
   end
 
-  subgraph EDGE[API Edge / Gateways]
+  subgraph EDGE[API Edge and Gateways]
     Z1[Registry API Gateway]
-    Z2[Auth + KYC Gateway]
+    Z2[Auth and KYC Gateway]
     Z3[Payments Proxy]
   end
 
   subgraph ICP[iQube Protocol - ICP Canisters]
-    C1[CrossChainService\n(LayerZero DVN on ICP)]
+    C1[CrossChainService - LayerZero DVN on ICP]
     C2[EVM RPC Canister]
-    C3[BTC Signer (tECDSA) + PSBT]
-    C4[Proof-of-State Anchor Publisher]
-    C5[IdentityRegistry\n(DIDQube + FIO)]
-    C6[StorageFabric\n(metaQube / blakQube / tokenQube)]
-    C7[Risk & Policy Engine]
+    C3[BTC Signer tECDSA and PSBT]
+    C4[Proof of State Anchor Publisher]
+    C5[IdentityRegistry - DIDQube and FIO]
+    C6[StorageFabric - metaQube blakQube tokenQube]
+    C7[Risk and Policy Engine]
   end
 
   subgraph EVM[EVM Chains]
-    E1[ERC-20/721/1155 Contracts]
-    E2[LayerZero Endpoints (OFT/ONFT/OSFT)]
-    E3[Treasury, Staking, Escrow]
+    E1[ERC-20 721 1155 Contracts]
+    E2[LayerZero Endpoints OFT ONFT OSFT]
+    E3[Treasury Staking Escrow]
   end
 
   subgraph BTC[Bitcoin]
-    B1[Ordinals / BRC-721]
+    B1[Ordinals and BRC-721]
     B2[Runes Policies]
-    B3[Anchors (OP_RETURN)]
+    B3[Anchors OP_RETURN]
   end
 
   A1-->Z1
@@ -59,31 +59,31 @@ flowchart TB
   C3-->B1
   C3-->B2
   C4-->B3
-  C7-.policy.->C6
-  C7-.policy.->C1
-  C7-.policy.->E3
+  C7-- policy --> C6
+  C7-- policy --> C1
+  C7-- policy --> E3
 ```
 
 ---
 
-## 2) C4-Style Container View
+## 2) C4 Style Container View
 
 ```mermaid
 flowchart LR
-  user[Users/Creators]
+  user[Users and Creators]
   admin[Operators]
 
-  ui[Web UI (Aigent Z Beta)]
+  ui[Web UI - Aigent Z Beta]
   apigw[API Gateway]
-  auth[Auth/KYC Gateway]
+  auth[Auth and KYC Gateway]
 
   can_xcs[CrossChainService]
   can_evmm[EVM RPC]
-  can_btc[BTC Signer/PSBT]
-  can_pos[Proof-of-State]
+  can_btc[BTC Signer PSBT]
+  can_pos[Proof of State]
   can_id[IdentityRegistry]
   can_store[StorageFabric]
-  can_risk[Risk & Policy]
+  can_risk[Risk and Policy]
 
   evm[EVM Contracts]
   lz[LayerZero Endpoints]
@@ -99,8 +99,10 @@ flowchart LR
   apigw-->can_evmm
   apigw-->can_btc
   apigw-->can_pos
-  can_xcs<-->lz
-  can_evmm<-->evm
+  can_xcs-->lz
+  lz-->can_xcs
+  can_evmm-->evm
+  evm-->can_evmm
   can_btc-->btc
   can_pos-->btc
 ```
@@ -110,30 +112,15 @@ flowchart LR
 ## 3) Plugin Architecture - CrossChainService
 
 ```mermaid
-classDiagram
-  class CrossChainService {
-    +submit(payload): MsgId
-    +finalize(msgId): Result
-    +verify(proof): bool
-  }
-  class LayerZeroAdapter {
-    +send(srcChain,dstChain,payload)
-    +verify(proof)
-  }
-  class BTCAdapter {
-    +mintOrdinal(meta)
-    +mintBRC721(coll)
-    +mintRunes(policy)
-    +anchorRoot(root)
-    +verifySPV(proof)
-  }
-  class TachiAdapter {
-    +submitVUTXO(payload)
-    +verifyProof(recursiveProof)
-  }
-  CrossChainService o--> LayerZeroAdapter
-  CrossChainService o--> BTCAdapter
-  CrossChainService o--> TachiAdapter
+flowchart LR
+  XCS[CrossChainService]
+  LZ[LayerZeroAdapter]
+  BTC[BTCAdapter]
+  TAC[TachiAdapter]
+
+  XCS-->LZ
+  XCS-->BTC
+  XCS-->TAC
 ```
 
 ---
