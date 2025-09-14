@@ -8,48 +8,40 @@
 
 ```mermaid
 flowchart TB
-  classDef tb fill:#fff,stroke:#333,stroke-width:2px,stroke-dasharray: 5 5
-  classDef svc fill:#eef,stroke:#336
-  classDef chain fill:#efe,stroke:#363
-  classDef infra fill:#fee,stroke:#633
 
   subgraph CLIENTS[Client Applications]
     A1[Aigent Z Beta UI]
-    A2[21 Sats Site & Marketplace]
-    A3[3rd-party Wallets/dApps]
+    A2[21 Sats Site and Marketplace]
+    A3[3rd party Wallets and dApps]
   end
 
-  subgraph EDGE[API Edge / Gateways]
+  subgraph EDGE[API Edge and Gateways]
     Z1[Registry API Gateway]
-    Z2[Auth + KYC Gateway]
+    Z2[Auth and KYC Gateway]
     Z3[Payments Proxy]
   end
-  class EDGE tb
 
-  subgraph ICP[iQube Protocol — ICP Canisters]
-    C1[CrossChainService\n(LayerZero DVN on ICP)]:::svc
-    C2[EVM RPC Canister]:::svc
-    C3[BTC Signer (tECDSA) + PSBT]:::svc
-    C4[Proof-of-State Anchor Publisher]:::svc
-    C5[IdentityRegistry\n(DIDQube + FIO)]:::svc
-    C6[StorageFabric\n(metaQube / blakQube / tokenQube)]:::svc
-    C7[Risk & Policy Engine]:::svc
+  subgraph ICP[iQube Protocol - ICP Canisters]
+    C1[CrossChainService - LayerZero DVN on ICP]
+    C2[EVM RPC Canister]
+    C3[BTC Signer tECDSA and PSBT]
+    C4[Proof of State Anchor Publisher]
+    C5[IdentityRegistry - DIDQube and FIO]
+    C6[StorageFabric - metaQube blakQube tokenQube]
+    C7[Risk and Policy Engine]
   end
-  class ICP tb
 
   subgraph EVM[EVM Chains]
-    E1[ERC-20/721/1155 Contracts]:::chain
-    E2[LayerZero Endpoints (OFT/ONFT/OSFT)]:::chain
-    E3[Treasury, Staking, Escrow]:::chain
+    E1[ERC-20 721 1155 Contracts]
+    E2[LayerZero Endpoints OFT ONFT OSFT]
+    E3[Treasury Staking Escrow]
   end
-  class EVM tb
 
   subgraph BTC[Bitcoin]
-    B1[Ordinals / BRC-721]:::chain
-    B2[Runes Policies]:::chain
-    B3[Anchors (OP_RETURN)]:::chain
+    B1[Ordinals and BRC-721]
+    B2[Runes Policies]
+    B3[Anchors OP_RETURN]
   end
-  class BTC tb
 
   A1-->Z1
   A2-->Z1
@@ -67,31 +59,31 @@ flowchart TB
   C3-->B1
   C3-->B2
   C4-->B3
-  C7-.policy.->C6
-  C7-.policy.->C1
-  C7-.policy.->E3
+  C7-- policy --> C6
+  C7-- policy --> C1
+  C7-- policy --> E3
 ```
 
 ---
 
-## 2) C4-Style Container View
+## 2) C4 Style Container View
 
 ```mermaid
 flowchart LR
-  user[Users/Creators]
+  user[Users and Creators]
   admin[Operators]
 
-  ui[Web UI (Aigent Z Beta)]
+  ui[Web UI - Aigent Z Beta]
   apigw[API Gateway]
-  auth[Auth/KYC Gateway]
+  auth[Auth and KYC Gateway]
 
   can_xcs[CrossChainService]
   can_evmm[EVM RPC]
-  can_btc[BTC Signer/PSBT]
-  can_pos[Proof-of-State]
+  can_btc[BTC Signer PSBT]
+  can_pos[Proof of State]
   can_id[IdentityRegistry]
   can_store[StorageFabric]
-  can_risk[Risk & Policy]
+  can_risk[Risk and Policy]
 
   evm[EVM Contracts]
   lz[LayerZero Endpoints]
@@ -107,41 +99,28 @@ flowchart LR
   apigw-->can_evmm
   apigw-->can_btc
   apigw-->can_pos
-  can_xcs<-->lz
-  can_evmm<-->evm
+  can_xcs-->lz
+  lz-->can_xcs
+  can_evmm-->evm
+  evm-->can_evmm
   can_btc-->btc
   can_pos-->btc
 ```
 
 ---
 
-## 3) Plugin Architecture — CrossChainService
+## 3) Plugin Architecture - CrossChainService
 
 ```mermaid
-classDiagram
-  class CrossChainService {
-    +submit(payload): MsgId
-    +finalize(msgId): Result
-    +verify(proof): bool
-  }
-  class LayerZeroAdapter {
-    +send(srcChain,dstChain,payload)
-    +verify(proof)
-  }
-  class BTCAdapter {
-    +mintOrdinal(meta)
-    +mintBRC721(coll)
-    +mintRunes(policy)
-    +anchorRoot(root)
-    +verifySPV(proof)
-  }
-  class TachiAdapter {
-    +submitVUTXO(payload)
-    +verifyProof(recursiveProof)
-  }
-  CrossChainService o--> LayerZeroAdapter
-  CrossChainService o--> BTCAdapter
-  CrossChainService o--> TachiAdapter
+flowchart LR
+  XCS[CrossChainService]
+  LZ[LayerZeroAdapter]
+  BTC[BTCAdapter]
+  TAC[TachiAdapter]
+
+  XCS-->LZ
+  XCS-->BTC
+  XCS-->TAC
 ```
 
 ---
@@ -161,15 +140,40 @@ classDiagram
   class IqubeInstance {
     instanceId: string
     classId: string
-    owner: address|bc1
+    owner: address | bc1
     tokenQubeRef: string
   }
-  class MetaQube { id:string; hash:bytes32; uri:string }
-  class BlakQube { id:string; uri:string; encSpec:string }
-  class TokenQube { id:string; policy:json; keywrap:string }
-  class ReceiptQube { id:string; merkleLeaf:bytes32; anchorTxid:string }
-  class Attestation { id:string; type:string; issuer:string; expiry:uint64 }
-  class FIOHandle { id:string; handle:string; owner:address }
+  class MetaQube {
+    id: string
+    hash: bytes32
+    uri: string
+  }
+  class BlakQube {
+    id: string
+    uri: string
+    encSpec: string
+  }
+  class TokenQube {
+    id: string
+    policy: json
+    keywrap: string
+  }
+  class ReceiptQube {
+    id: string
+    merkleLeaf: bytes32
+    anchorTxid: string
+  }
+  class Attestation {
+    id: string
+    type: string
+    issuer: string
+    expiry: uint64
+  }
+  class FIOHandle {
+    id: string
+    handle: string
+    owner: address
+  }
 
   IqubeClass "1" -- "*" IqubeInstance: materializes
   IqubeClass "1" -- "1" MetaQube: describes
@@ -199,7 +203,7 @@ sequenceDiagram
   XCS-->>GW: dualLockBound(evmClass, btcClass)
   GW->>AN: scheduleAnchor(merkleRoot)
   AN->>BTC: publish OP_RETURN(root)
-  UI<<--GW: Class ready (IDs + anchor ref)
+  GW-->>UI: Class ready (IDs + anchor ref)
 ```
 
 ---
