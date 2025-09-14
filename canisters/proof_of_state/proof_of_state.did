@@ -1,0 +1,23 @@
+type Receipt = record {
+  id : text;
+  data_hash : text;
+  timestamp : nat64;
+  merkle_proof : vec text;
+};
+
+type MerkleBatch = record {
+  root : text;
+  receipts : vec Receipt;
+  created_at : nat64;
+  btc_anchor_txid : opt text;
+  btc_block_height : opt nat64;
+};
+
+service : {
+  issue_receipt : (text) -> (text);
+  batch : () -> (text);
+  anchor : () -> (text);
+  get_receipt : (text) -> (opt Receipt) query;
+  get_batches : () -> (vec MerkleBatch) query;
+  get_pending_count : () -> (nat64) query;
+}

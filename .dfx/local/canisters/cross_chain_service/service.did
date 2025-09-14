@@ -1,0 +1,42 @@
+type DVNMessage = record {
+  id : text;
+  source_chain : nat32;
+  destination_chain : nat32;
+  payload : vec nat8;
+  nonce : nat64;
+  sender : text;
+  timestamp : nat64;
+};
+
+type DVNAttestation = record {
+  message_id : text;
+  validator : text;
+  signature : vec nat8;
+  timestamp : nat64;
+};
+
+type CrossChainTransaction = record {
+  id : text;
+  source_chain : text;
+  destination_chain : text;
+  tx_hash : text;
+  block_height : nat64;
+  confirmations : nat32;
+  status : text;
+  timestamp : nat64;
+};
+
+type Result = variant { Ok : text; Err : text };
+type Result_1 = variant { Ok : bool; Err : text };
+
+service : {
+  submit_dvn_message : (nat32, nat32, vec nat8, text) -> (text);
+  submit_attestation : (text, text, vec nat8) -> (Result);
+  monitor_evm_transaction : (nat32, text, text) -> (Result);
+  verify_layerzero_message : (nat32, text, text) -> (Result_1);
+  get_dvn_message : (text) -> (opt DVNMessage) query;
+  get_message_attestations : (text) -> (vec DVNAttestation) query;
+  get_transaction : (text) -> (opt CrossChainTransaction) query;
+  get_pending_messages : () -> (vec DVNMessage) query;
+  get_ready_messages : () -> (vec DVNMessage) query;
+}

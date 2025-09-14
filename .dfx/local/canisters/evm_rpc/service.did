@@ -1,0 +1,51 @@
+type EVMChainConfig = record {
+  chain_id : nat32;
+  name : text;
+  rpc_url : text;
+  block_explorer : text;
+  native_token : text;
+};
+
+type EVMLog = record {
+  address : text;
+  topics : vec text;
+  data : text;
+  log_index : nat32;
+};
+
+type TransactionReceipt = record {
+  tx_hash : text;
+  block_number : nat64;
+  block_hash : text;
+  transaction_index : nat32;
+  from_address : text;
+  to_address : text;
+  gas_used : nat64;
+  status : bool;
+  logs : vec EVMLog;
+};
+
+type BlockInfo = record {
+  number : nat64;
+  hash : text;
+  parent_hash : text;
+  timestamp : nat64;
+  gas_limit : nat64;
+  gas_used : nat64;
+  transaction_count : nat32;
+};
+
+type Result = variant { Ok : TransactionReceipt; Err : text };
+type Result_1 = variant { Ok : BlockInfo; Err : text };
+type Result_2 = variant { Ok : nat64; Err : text };
+
+service : {
+  init_chain_configs : () -> ();
+  get_transaction_receipt : (nat32, text) -> (Result);
+  get_block_info : (nat32, nat64) -> (Result_1);
+  get_latest_block_number : (nat32) -> (Result_2);
+  get_chain_config : (nat32) -> (opt EVMChainConfig) query;
+  get_supported_chains : () -> (vec EVMChainConfig) query;
+  get_cached_receipt : (text) -> (opt TransactionReceipt) query;
+  get_cached_block : (nat64) -> (opt BlockInfo) query;
+}

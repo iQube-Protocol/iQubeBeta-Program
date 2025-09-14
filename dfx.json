@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "canisters": {
+    "cross_chain_service": {
+      "type": "rust",
+      "package": "cross_chain_service",
+      "candid": "canisters/cross_chain_service/cross_chain_service.did"
+    },
+    "evm_rpc": {
+      "type": "rust",
+      "package": "evm_rpc",
+      "candid": "canisters/evm_rpc/evm_rpc.did"
+    },
+    "btc_signer_psbt": {
+      "type": "rust",
+      "package": "btc_signer_psbt",
+      "candid": "canisters/btc_signer_psbt/btc_signer_psbt.did"
+    },
+    "proof_of_state": {
+      "type": "rust",
+      "package": "proof_of_state",
+      "candid": "canisters/proof_of_state/proof_of_state.did"
+    }
+  },
+  "networks": {
+    "local": {
+      "bind": "127.0.0.1:4943",
+      "type": "ephemeral"
+    },
+    "ic": {
+      "providers": ["https://ic0.app"],
+      "type": "persistent"
+    }
+  },
+  "output_env_file": ".env"
+}

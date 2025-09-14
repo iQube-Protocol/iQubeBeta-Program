@@ -1,0 +1,45 @@
+type BitcoinAddress = record {
+  address : text;
+  public_key : vec nat8;
+  derivation_path : vec vec nat8;
+};
+
+type UTXO = record {
+  txid : text;
+  vout : nat32;
+  amount : nat64;
+  script_pubkey : vec nat8;
+};
+
+type TransactionInput = record {
+  utxo : UTXO;
+  sequence : nat32;
+};
+
+type TransactionOutput = record {
+  address : text;
+  amount : nat64;
+};
+
+type UnsignedTransaction = record {
+  inputs : vec TransactionInput;
+  outputs : vec TransactionOutput;
+  locktime : nat32;
+};
+
+type SignedTransaction = record {
+  txid : text;
+  raw_tx : text;
+  size : nat32;
+  fee : nat64;
+};
+
+service : {
+  get_btc_address : (vec vec nat8) -> (variant { Ok : BitcoinAddress; Err : text });
+  create_anchor_transaction : (text, vec UTXO, nat64) -> (variant { Ok : UnsignedTransaction; Err : text });
+  sign_transaction : (UnsignedTransaction, vec vec nat8) -> (variant { Ok : SignedTransaction; Err : text });
+  broadcast_transaction : (text) -> (variant { Ok : text; Err : text });
+  get_transaction : (text) -> (opt SignedTransaction) query;
+  get_address_info : (text) -> (opt BitcoinAddress) query;
+  get_all_addresses : () -> (vec BitcoinAddress) query;
+}

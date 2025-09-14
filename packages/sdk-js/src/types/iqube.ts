@@ -24,16 +24,17 @@ export interface IQubeTemplate {
 
 /** SDK extensions for UI badges and cross-chain state */
 export interface AnchorStatus {
-  anchored: boolean;
-  depth: number;
-  requiredDepth: number;
-  txid?: string;
-  spvAvailable: boolean;
+  btcTxHash: string;
+  confirmations: number;
+  blockHeight: number;
+  isConfirmed: boolean;
 }
 
 export interface DualLockStatus {
-  evmBound: boolean;
-  btcAnchored: boolean;
+  evmTxHash: string;
+  icpReceiptId: string;
+  isLocked: boolean;
+  unlockHeight: number;
 }
 
 export interface ChainAddresses {
