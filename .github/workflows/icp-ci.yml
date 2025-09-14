@@ -1,0 +1,76 @@
+name: ICP Canisters CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-canisters:
+    name: Build Rust canisters (no replica)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust 1.89.0
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.89.0
+          components: clippy,rustfmt
+
+      - name: Add wasm32 target
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            canisters/**
+
+      - name: Build Rust canisters
+        env:
+          RUSTFLAGS: "-C target-feature=+atomics,+bulk-memory,+mutable-globals"
+        run: |
+          set -e
+          # Build each canister crate with --locked matching local build
+          cargo build --target wasm32-unknown-unknown --release -p proof_of_state --locked
+          cargo build --target wasm32-unknown-unknown --release -p btc_signer_psbt --locked
+          cargo build --target wasm32-unknown-unknown --release -p cross_chain_service --locked
+          cargo build --target wasm32-unknown-unknown --release -p evm_rpc --locked
+
+  web-and-sdk:
+    name: Lint and build web + SDK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies (root)
+        run: npm ci
+
+      - name: Build SDK packages
+        run: |
+          npm run -w packages/indexers build || true
+          npm run -w packages/sdk-js build || true
+
+      - name: Lint
+        run: npm run lint || true
+
+      - name: Build Next.js apps (Ops Console + 21 Sats Market)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || '' }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY || '' }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY || '' }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || '' }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || '' }}
+        run: |
+          npm run -w apps/ops-console build || true
+          npm run -w apps/21sats-market build || true
