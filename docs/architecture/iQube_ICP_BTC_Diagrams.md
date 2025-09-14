@@ -8,10 +8,6 @@
 
 ```mermaid
 flowchart TB
-  classDef tb fill:#fff,stroke:#333,stroke-width:2px,stroke-dasharray: 5 5
-  classDef svc fill:#eef,stroke:#336
-  classDef chain fill:#efe,stroke:#363
-  classDef infra fill:#fee,stroke:#633
 
   subgraph CLIENTS[Client Applications]
     A1[Aigent Z Beta UI]
@@ -24,32 +20,28 @@ flowchart TB
     Z2[Auth + KYC Gateway]
     Z3[Payments Proxy]
   end
-  class EDGE tb
 
-  subgraph ICP[iQube Protocol — ICP Canisters]
-    C1[CrossChainService\n(LayerZero DVN on ICP)]:::svc
-    C2[EVM RPC Canister]:::svc
-    C3[BTC Signer (tECDSA) + PSBT]:::svc
-    C4[Proof-of-State Anchor Publisher]:::svc
-    C5[IdentityRegistry\n(DIDQube + FIO)]:::svc
-    C6[StorageFabric\n(metaQube / blakQube / tokenQube)]:::svc
-    C7[Risk & Policy Engine]:::svc
+  subgraph ICP[iQube Protocol - ICP Canisters]
+    C1[CrossChainService\n(LayerZero DVN on ICP)]
+    C2[EVM RPC Canister]
+    C3[BTC Signer (tECDSA) + PSBT]
+    C4[Proof-of-State Anchor Publisher]
+    C5[IdentityRegistry\n(DIDQube + FIO)]
+    C6[StorageFabric\n(metaQube / blakQube / tokenQube)]
+    C7[Risk & Policy Engine]
   end
-  class ICP tb
 
   subgraph EVM[EVM Chains]
-    E1[ERC-20/721/1155 Contracts]:::chain
-    E2[LayerZero Endpoints (OFT/ONFT/OSFT)]:::chain
-    E3[Treasury, Staking, Escrow]:::chain
+    E1[ERC-20/721/1155 Contracts]
+    E2[LayerZero Endpoints (OFT/ONFT/OSFT)]
+    E3[Treasury, Staking, Escrow]
   end
-  class EVM tb
 
   subgraph BTC[Bitcoin]
-    B1[Ordinals / BRC-721]:::chain
-    B2[Runes Policies]:::chain
-    B3[Anchors (OP_RETURN)]:::chain
+    B1[Ordinals / BRC-721]
+    B2[Runes Policies]
+    B3[Anchors (OP_RETURN)]
   end
-  class BTC tb
 
   A1-->Z1
   A2-->Z1
@@ -115,7 +107,7 @@ flowchart LR
 
 ---
 
-## 3) Plugin Architecture — CrossChainService
+## 3) Plugin Architecture - CrossChainService
 
 ```mermaid
 classDiagram

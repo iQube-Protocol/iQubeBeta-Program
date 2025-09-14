@@ -25,19 +25,19 @@
 
 ```mermaid
 flowchart TB
-  subgraph Client Apps
+  subgraph CLIENTS[Client Apps]
     A1[Aigent Z Beta UI]
     A2[21 Sats Site & Marketplace]
     A3[3rd-party dApps / Wallets]
   end
 
-  subgraph Aigent Z Services (Next.js/Edge)
+  subgraph AZ[Aigent Z Services - Next.js/Edge]
     Z1[Registry API Gateway]
     Z2[Auth & KYC Gateway]
     Z3[Payments Proxy]
   end
 
-  subgraph iQube Protocol Services (ICP)
+  subgraph ICP[iQube Protocol Services - ICP]
     C1[CrossChainService\n(LayerZero DVN on ICP)]
     C2[EVM RPC Canister]
     C3[BTC Signer (tECDSA) & PSBT]
@@ -47,13 +47,13 @@ flowchart TB
     C7[Risk & Policy Engine]
   end
 
-  subgraph EVM Chains
+  subgraph EVM[EVM Chains]
     E1[ERC-20/721/1155 Contracts]
     E2[LayerZero Endpoints (OFT/ONFT/OSFT)]
     E3[Treasury & Escrow]
   end
 
-  subgraph Bitcoin
+  subgraph BTC[Bitcoin]
     B1[Ordinals / BRC-721]
     B2[Runes Policies]
     B3[BTC L1 Anchors]
