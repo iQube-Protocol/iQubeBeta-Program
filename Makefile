@@ -1,38 +1,38 @@
 .PHONY: bootstrap dev test lint format build deploy-dev deploy-stage deploy-prod anchor
 
 bootstrap:
-	pnpm i --filter ./apps/** --filter ./packages/** || true
-	cargo build --workspace || true
+	pnpm i --filter ./apps/** --filter ./packages/**
+	cargo build --workspace
 
 lint:
 	npx biome check . || true
 	cargo clippy --all-targets -- -D warnings || true
 
 format:
-	npx biome format . || true
-	cargo fmt --all || true
+	npx biome format .
+	cargo fmt --all
 
 dev:
 	dfx start --background || true
-	dfx deploy || true
-	pnpm -w dev || true
+	dfx deploy
+	pnpm -w dev
 
 build:
-	pnpm -w build || true
-	cargo build --release --workspace || true
+	pnpm -w build
+	cargo build --release --workspace
 
 test:
-	pnpm -w test || true
-	cargo test --workspace || true
+	pnpm -w test
+	cargo test --workspace
 
 anchor:
-	dfx canister call proof_of_state anchor '()' || true
+	dfx canister call proof_of_state anchor '()'
 
 deploy-dev:
-	dfx deploy --network local || true
+	dfx deploy --network local
 
 deploy-stage:
-	dfx deploy --network ic || true
+	dfx deploy --network ic
 
 deploy-prod:
-	@echo "Promote stage artifacts with tag (manual gate)"
+	# promote stage artifacts with tag
