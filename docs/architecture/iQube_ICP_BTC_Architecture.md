@@ -38,8 +38,7 @@ flowchart TB
   end
 
   subgraph iQube Protocol Services (ICP)
-    C1[CrossChainService
-       (LayerZero DVN on ICP)]
+    C1[CrossChainService\n(LayerZero DVN on ICP)]
     C2[EVM RPC Canister]
     C3[BTC Signer (tECDSA) & PSBT]
     C4[Proof-of-State Anchor Publisher]

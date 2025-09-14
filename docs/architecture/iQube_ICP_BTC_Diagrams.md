@@ -161,15 +161,40 @@ classDiagram
   class IqubeInstance {
     instanceId: string
     classId: string
-    owner: address|bc1
+    owner: address | bc1
     tokenQubeRef: string
   }
-  class MetaQube { id:string; hash:bytes32; uri:string }
-  class BlakQube { id:string; uri:string; encSpec:string }
-  class TokenQube { id:string; policy:json; keywrap:string }
-  class ReceiptQube { id:string; merkleLeaf:bytes32; anchorTxid:string }
-  class Attestation { id:string; type:string; issuer:string; expiry:uint64 }
-  class FIOHandle { id:string; handle:string; owner:address }
+  class MetaQube {
+    id: string
+    hash: bytes32
+    uri: string
+  }
+  class BlakQube {
+    id: string
+    uri: string
+    encSpec: string
+  }
+  class TokenQube {
+    id: string
+    policy: json
+    keywrap: string
+  }
+  class ReceiptQube {
+    id: string
+    merkleLeaf: bytes32
+    anchorTxid: string
+  }
+  class Attestation {
+    id: string
+    type: string
+    issuer: string
+    expiry: uint64
+  }
+  class FIOHandle {
+    id: string
+    handle: string
+    owner: address
+  }
 
   IqubeClass "1" -- "*" IqubeInstance: materializes
   IqubeClass "1" -- "1" MetaQube: describes
@@ -199,7 +224,7 @@ sequenceDiagram
   XCS-->>GW: dualLockBound(evmClass, btcClass)
   GW->>AN: scheduleAnchor(merkleRoot)
   AN->>BTC: publish OP_RETURN(root)
-  UI<<--GW: Class ready (IDs + anchor ref)
+  GW-->>UI: Class ready (IDs + anchor ref)
 ```
 
 ---
