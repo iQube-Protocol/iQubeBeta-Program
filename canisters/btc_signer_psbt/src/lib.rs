@@ -1,7 +1,7 @@
 use candid::{CandidType, Deserialize};
 use ic_cdk::{query, update, api::management_canister::{
     ecdsa::{ecdsa_public_key, sign_with_ecdsa, EcdsaCurve, EcdsaKeyId, EcdsaPublicKeyArgument, SignWithEcdsaArgument},
-    http_request::{http_request, CanisterHttpRequestArgument, HttpHeader, HttpMethod, HttpResponse, TransformArgs}
+    http_request::{http_request, CanisterHttpRequestArgument, HttpHeader, HttpMethod, HttpResponse, TransformContext}
 }};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
@@ -190,7 +190,7 @@ pub async fn broadcast_transaction(raw_tx: String) -> Result<String, String> {
         method: HttpMethod::POST,
         body: Some(request_body.into_bytes()),
         max_response_bytes: Some(1024),
-        transform: Some(TransformArgs {
+        transform: Some(TransformContext {
             function: candid::Func {
                 principal: ic_cdk::api::id(),
                 method: "transform_response".to_string(),
@@ -236,7 +236,7 @@ fn extract_txid_from_response(response: &str) -> Result<String, String> {
 pub async fn create_and_broadcast_anchor(data_hash: String, fee_rate: u64) -> Result<String, String> {
     // Get Bitcoin address for this canister
     let address_result = get_btc_address(vec![]).await;
-    let address = match address_result {
+    let _address = match address_result {
         Ok(addr) => addr.address,
         Err(e) => return Err(format!("Failed to get BTC address: {}", e)),
     };
@@ -269,7 +269,7 @@ pub async fn create_and_broadcast_anchor(data_hash: String, fee_rate: u64) -> Re
 }
 
 #[query]
-pub fn transform_response(args: TransformArgs) -> HttpResponse {
+pub fn transform_response(args: TransformContext) -> HttpResponse {
     HttpResponse {
         status: 200u8.into(),
         headers: vec![],
