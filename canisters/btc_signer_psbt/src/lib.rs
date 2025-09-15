@@ -205,3 +205,39 @@ pub fn get_all_addresses() -> Vec<BitcoinAddress> {
 
 // Export Candid interface
 ic_cdk::export_candid!();
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn anchor_tx_requires_utxos() {
+        let res = futures::executor::block_on(create_anchor_transaction(
+            "abcd".to_string(),
+            vec![],
+            10,
+        ));
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn anchor_tx_builds_with_change() {
+        let utxo = UTXO {
+            txid: "txid".to_string(),
+            vout: 0,
+            amount: 100_000,
+            script_pubkey: vec![],
+        };
+        let res = futures::executor::block_on(create_anchor_transaction(
+            "deadbeef".to_string(),
+            vec![utxo],
+            10,
+        ));
+        let tx = res.expect("should build unsigned tx");
+        // Two outputs: OP_RETURN and change
+        assert_eq!(tx.outputs.len(), 2);
+        // Change output should be > 0 with our fake fee calc
+        let change = tx.outputs.iter().find(|o| o.address == "change_address").unwrap();
+        assert!(change.amount > 0);
+    }
+}

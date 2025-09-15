@@ -329,3 +329,66 @@ pub fn get_cached_block(block_number: u64) -> Option<BlockInfo> {
 
 // Export Candid interface
 ic_cdk::export_candid!();
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_block_number_hex() {
+        let json = r#"{"jsonrpc":"2.0","id":1,"result":"0x10"}"#;
+        let n = parse_block_number(json).expect("should parse hex");
+        assert_eq!(n, 16);
+    }
+
+    #[test]
+    fn parse_block_info_basic() {
+        let json = r#"{
+            "jsonrpc":"2.0",
+            "id":1,
+            "result":{
+                "hash":"0xabc",
+                "parentHash":"0xdef",
+                "timestamp":"0x5f5e100",
+                "gasLimit":"0x5208",
+                "gasUsed":"0x5208",
+                "transactions":[]
+            }
+        }"#;
+        let block = parse_block_info(json, 42).expect("block info parse");
+        assert_eq!(block.number, 42);
+        assert_eq!(block.hash, "0xabc");
+        assert_eq!(block.parent_hash, "0xdef");
+        assert!(block.timestamp > 0);
+    }
+
+    #[test]
+    fn parse_tx_receipt_ok() {
+        let json = r#"{
+            "jsonrpc":"2.0",
+            "id":1,
+            "result":{
+                "blockNumber":"0x1",
+                "blockHash":"0xaaa",
+                "transactionIndex":"0x0",
+                "from":"0xfrom",
+                "to":"0xto",
+                "gasUsed":"0x5208",
+                "status":"0x1",
+                "logs": []
+            }
+        }"#;
+        let r = parse_transaction_receipt(json, "0xhash").expect("receipt");
+        assert_eq!(r.tx_hash, "0xhash");
+        assert_eq!(r.block_number, 1);
+        assert!(r.status);
+    }
+
+    #[test]
+    fn init_configs_populates_map() {
+        init_chain_configs();
+        let chains = get_supported_chains();
+        assert!(!chains.is_empty());
+        assert!(get_chain_config(11155111).is_some());
+    }
+}

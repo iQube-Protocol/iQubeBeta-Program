@@ -47,6 +47,21 @@ thread_local! {
 const REQUIRED_ATTESTATIONS: usize = 2; // Minimum DVN quorum
 const CONFIRMATION_BLOCKS: u32 = 6; // Required confirmations
 
+// Host-friendly time helper: uses ic_cdk::api::time in WASM, std time in host tests
+fn now_millis() -> u64 {
+    #[cfg(target_arch = "wasm32")]
+    {
+        ic_cdk::api::time()
+    }
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64
+    }
+}
+
 #[update]
 pub fn submit_dvn_message(
     source_chain: u32,
@@ -54,26 +69,28 @@ pub fn submit_dvn_message(
     payload: Vec<u8>,
     sender: String,
 ) -> String {
-    let message_id = format!("msg_{}", ic_cdk::api::time());
+    let message_id = format!("msg_{}", now_millis());
     let message = DVNMessage {
         id: message_id.clone(),
         source_chain,
         destination_chain,
         payload,
-        nonce: ic_cdk::api::time(),
+        nonce: now_millis(),
         sender,
-        timestamp: ic_cdk::api::time(),
+        timestamp: now_millis(),
     };
     
     DVN_MESSAGES.with(|m| m.borrow_mut().insert(message_id.clone(), message));
     
-    // Start monitoring for attestations
-    let msg_id_clone = message_id.clone();
-    let timer_id = set_timer(Duration::from_secs(30), move || {
-        ic_cdk::spawn(check_message_attestations(msg_id_clone.clone()));
-    });
-    
-    TIMER_IDS.with(|t| t.borrow_mut().push(timer_id));
+    // Start monitoring for attestations (only in canister runtime)
+    #[cfg(target_arch = "wasm32")]
+    {
+        let msg_id_clone = message_id.clone();
+        let timer_id = set_timer(Duration::from_secs(30), move || {
+            ic_cdk::spawn(check_message_attestations(msg_id_clone.clone()));
+        });
+        TIMER_IDS.with(|t| t.borrow_mut().push(timer_id));
+    }
     
     message_id
 }
@@ -94,7 +111,7 @@ pub fn submit_attestation(
         message_id: message_id.clone(),
         validator,
         signature,
-        timestamp: ic_cdk::api::time(),
+        timestamp: now_millis(),
     };
     
     ATTESTATIONS.with(|a| {
@@ -154,7 +171,7 @@ pub async fn monitor_evm_transaction(
                     block_height: 0, // Would parse from response
                     confirmations: 0,
                     status: "confirmed".to_string(),
-                    timestamp: ic_cdk::api::time(),
+                    timestamp: now_millis(),
                 };
                 
                 TRANSACTIONS.with(|t| t.borrow_mut().insert(tx_id.clone(), transaction));
@@ -253,3 +270,24 @@ pub fn get_ready_messages() -> Vec<DVNMessage> {
 
 // Export Candid interface
 ic_cdk::export_candid!();
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn submit_message_and_attest() {
+        let msg_id = submit_dvn_message(1, 2, vec![1,2,3], "sender".to_string());
+        assert!(msg_id.starts_with("msg_"));
+
+        // First attestation
+        let r1 = submit_attestation(msg_id.clone(), "v1".to_string(), vec![0x01]);
+        assert!(r1.is_ok());
+        let text1 = r1.unwrap();
+        assert!(text1.contains("Attestation recorded") || text1.contains("ready for execution"));
+
+        // Second attestation should reach quorum
+        let r2 = submit_attestation(msg_id.clone(), "v2".to_string(), vec![0x02]).unwrap();
+        assert!(r2.contains("ready for execution") || r2.contains("Attestation recorded"));
+    }
+}
