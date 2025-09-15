@@ -101,6 +101,12 @@ jobs:
           # wait for replica
           sleep 5
 
+      - name: Update Cargo.lock
+        run: |
+          set -e
+          # Update Cargo.lock to match current dependencies
+          cargo update
+
       - name: Deploy proof_of_state and run anchor flow
         id: flow
         run: |
