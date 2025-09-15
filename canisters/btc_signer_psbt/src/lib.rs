@@ -91,8 +91,8 @@ pub async fn get_btc_address(derivation_path: Vec<Vec<u8>>) -> Result<BitcoinAdd
 
 #[update]
 pub async fn create_anchor_transaction(
-    data_hash: String,
     utxos: Vec<UTXO>,
+    data_hash: String,
     fee_rate: u64,
 ) -> Result<UnsignedTransaction, String> {
     if utxos.is_empty() {
@@ -253,7 +253,7 @@ pub async fn create_and_broadcast_anchor(data_hash: String, fee_rate: u64) -> Re
     ];
 
     // Create anchor transaction
-    let unsigned_tx = match create_anchor_transaction(mock_utxos, data_hash, fee_rate) {
+    let unsigned_tx = match create_anchor_transaction(mock_utxos, data_hash, fee_rate).await {
         Ok(tx) => tx,
         Err(e) => return Err(format!("Failed to create transaction: {}", e)),
     };
@@ -271,7 +271,7 @@ pub async fn create_and_broadcast_anchor(data_hash: String, fee_rate: u64) -> Re
 #[query]
 pub fn transform_response(args: TransformArgs) -> HttpResponse {
     HttpResponse {
-        status: 200u8,
+        status: 200u8.into(),
         headers: vec![],
         body: args.context,
     }
