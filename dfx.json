@@ -4,22 +4,26 @@
     "cross_chain_service": {
       "type": "rust",
       "package": "cross_chain_service",
-      "candid": "canisters/cross_chain_service/cross_chain_service.did"
+      "candid": "canisters/cross_chain_service/cross_chain_service.did",
+      "build": ["cargo", "build", "--target", "wasm32-unknown-unknown", "--release", "-p", "cross_chain_service"]
     },
     "evm_rpc": {
       "type": "rust",
       "package": "evm_rpc",
-      "candid": "canisters/evm_rpc/evm_rpc.did"
+      "candid": "canisters/evm_rpc/evm_rpc.did",
+      "build": ["cargo", "build", "--target", "wasm32-unknown-unknown", "--release", "-p", "evm_rpc"]
     },
     "btc_signer_psbt": {
       "type": "rust",
       "package": "btc_signer_psbt",
-      "candid": "canisters/btc_signer_psbt/btc_signer_psbt.did"
+      "candid": "canisters/btc_signer_psbt/btc_signer_psbt.did",
+      "build": ["cargo", "build", "--target", "wasm32-unknown-unknown", "--release", "-p", "btc_signer_psbt"]
     },
     "proof_of_state": {
       "type": "rust",
       "package": "proof_of_state",
-      "candid": "canisters/proof_of_state/proof_of_state.did"
+      "candid": "canisters/proof_of_state/proof_of_state.did",
+      "build": ["cargo", "build", "--target", "wasm32-unknown-unknown", "--release", "-p", "proof_of_state"]
     }
   },
   "networks": {
