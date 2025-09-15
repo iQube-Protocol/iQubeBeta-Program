@@ -82,19 +82,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install dfx (dfxvm)
+      - name: Install dfx 0.29.1
         shell: bash
         run: |
           set -e
-          # Non-interactive install with yes flag
-          yes | curl -fsSL https://internetcomputer.org/install.sh | bash || true
-          echo "$HOME/.local/share/dfx/bin" >> $GITHUB_PATH
-          echo "$HOME/.local/share/dfxvm/bin" >> $GITHUB_PATH
-          source ~/.profile || true
-          export PATH="$HOME/.local/share/dfx/bin:$HOME/.local/share/dfxvm/bin:$PATH"
-          if command -v dfxvm >/dev/null 2>&1; then
-            dfxvm install 0.29.1
-          fi
+          # Direct binary download for CI reliability
+          DFX_VERSION="0.29.1"
+          wget -O dfx.tar.gz "https://github.com/dfinity/sdk/releases/download/${DFX_VERSION}/dfx-${DFX_VERSION}-x86_64-linux.tar.gz"
+          tar -xzf dfx.tar.gz
+          sudo mv dfx /usr/local/bin/dfx
+          chmod +x /usr/local/bin/dfx
           dfx --version
 
       - name: Start replica
