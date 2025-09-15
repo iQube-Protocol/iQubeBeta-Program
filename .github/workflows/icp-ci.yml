@@ -82,6 +82,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Rust with wasm32 target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.89.0
+          targets: wasm32-unknown-unknown
+
       - name: Install dfx 0.29.1
         shell: bash
         run: |
