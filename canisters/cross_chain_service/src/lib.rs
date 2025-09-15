@@ -45,7 +45,7 @@ thread_local! {
 }
 
 const REQUIRED_ATTESTATIONS: usize = 2; // Minimum DVN quorum
-const CONFIRMATION_BLOCKS: u32 = 6; // Required confirmations
+const _CONFIRMATION_BLOCKS: u32 = 6; // Required confirmations
 
 // Host-friendly time helper: uses ic_cdk::api::time in WASM, std time in host tests
 fn now_millis() -> u64 {
@@ -204,7 +204,7 @@ async fn check_message_attestations(message_id: String) {
 
 #[update]
 pub async fn verify_layerzero_message(
-    source_chain_id: u32,
+    _source_chain_id: u32,
     message_hash: String,
     dvn_endpoint: String,
 ) -> Result<bool, String> {
