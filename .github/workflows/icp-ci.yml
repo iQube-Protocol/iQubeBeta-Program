@@ -179,40 +179,35 @@ jobs:
             
             echo "-- submit_dvn_message --"
             MESSAGE_ID=$(dfx canister call cross_chain_service submit_dvn_message '(
-              record {
-                id = "msg_001";
-                source_chain = 1 : nat32;
-                destination_chain = 137 : nat32;
-                payload = vec {1; 2; 3; 4};
-                nonce = 12345 : nat64;
-                sender = "0x1234567890abcdef1234567890abcdef12345678";
-                timestamp = 1726437600000 : nat64;
-              }
+              1 : nat32,
+              137 : nat32,
+              vec {1; 2; 3; 4},
+              "0x1234567890abcdef1234567890abcdef12345678"
             )' | grep -o '"[^"]*"' | tr -d '"')
             echo "Submitted message: $MESSAGE_ID"
             
             echo "-- get_dvn_message --"
-            dfx canister call cross_chain_service get_dvn_message '("msg_001")'
+            dfx canister call cross_chain_service get_dvn_message "(\"$MESSAGE_ID\")"
             
             echo "-- submit_attestation (DVN 1) --"
-            dfx canister call cross_chain_service submit_attestation '(
-              "msg_001",
+            dfx canister call cross_chain_service submit_attestation "(
+              \"$MESSAGE_ID\",
               "dvn_validator_1",
               vec {0xde; 0xad; 0xbe; 0xef}
             )'
             
             echo "-- get_message_attestations (1 attestation) --"
-            dfx canister call cross_chain_service get_message_attestations '("msg_001")'
+            dfx canister call cross_chain_service get_message_attestations "(\"$MESSAGE_ID\")"
             
             echo "-- submit_attestation (DVN 2) --"
-            dfx canister call cross_chain_service submit_attestation '(
-              "msg_001", 
-              "dvn_validator_2",
+            dfx canister call cross_chain_service submit_attestation "(
+              \"$MESSAGE_ID\", 
+              \"dvn_validator_2\",
               vec {0xca; 0xfe; 0xba; 0xbe}
-            )'
+            )"
             
             echo "-- get_message_attestations (2 attestations - ready for execution) --"
-            dfx canister call cross_chain_service get_message_attestations '("msg_001")'
+            dfx canister call cross_chain_service get_message_attestations "(\"$MESSAGE_ID\")"
             
             echo "-- monitor_evm_transaction --"
             dfx canister call cross_chain_service monitor_evm_transaction '(
