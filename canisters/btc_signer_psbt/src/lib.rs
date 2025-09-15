@@ -1,7 +1,7 @@
 use candid::{CandidType, Deserialize};
 use ic_cdk::{query, update, api::management_canister::{
     ecdsa::{ecdsa_public_key, sign_with_ecdsa, EcdsaCurve, EcdsaKeyId, EcdsaPublicKeyArgument, SignWithEcdsaArgument},
-    http_request::{http_request, CanisterHttpRequestArgument, HttpHeader, HttpMethod, HttpResponse, TransformContext}
+    http_request::{http_request, CanisterHttpRequestArgument, HttpHeader, HttpMethod, HttpResponse, TransformContext, TransformFunc}
 }};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
@@ -191,10 +191,10 @@ pub async fn broadcast_transaction(raw_tx: String) -> Result<String, String> {
         body: Some(request_body.into_bytes()),
         max_response_bytes: Some(1024),
         transform: Some(TransformContext {
-            function: candid::Func {
+            function: TransformFunc(candid::Func {
                 principal: ic_cdk::api::id(),
                 method: "transform_response".to_string(),
-            },
+            }),
             context: vec![],
         }),
         headers: vec![
