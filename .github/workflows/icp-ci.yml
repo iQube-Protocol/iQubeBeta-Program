@@ -74,3 +74,62 @@ jobs:
         run: |
           npm run -w apps/ops-console build || true
           npm run -w apps/21sats-market build || true
+
+  e2e-anchor:
+    name: E2E Anchor Flow (dfx local)
+    runs-on: ubuntu-latest
+    needs: build-canisters
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dfx (dfxvm)
+        shell: bash
+        run: |
+          set -e
+          curl -fsSL https://internetcomputer.org/install.sh | bash
+          echo "$HOME/.local/share/dfx/bin" >> $GITHUB_PATH
+          echo "$HOME/.local/share/dfxvm/bin" >> $GITHUB_PATH
+          source $GITHUB_ENV || true
+          if command -v dfxvm >/dev/null 2>&1; then
+            dfxvm install 0.29.1
+          fi
+          dfx --version
+
+      - name: Start replica
+        run: |
+          set -e
+          dfx start --background --clean
+          # wait for replica
+          sleep 5
+
+      - name: Deploy proof_of_state and run anchor flow
+        id: flow
+        run: |
+          set -e
+          LOG=anchor_flow.log
+          {
+            echo "-- deploy --"
+            dfx deploy proof_of_state
+            echo "-- get_pending_count --"
+            dfx canister call proof_of_state get_pending_count '()'
+            echo "-- issue_receipt --"
+            dfx canister call proof_of_state issue_receipt '("deadbeefdeadbeefdeadbeefdeadbeef")'
+            echo "-- batch --"
+            dfx canister call proof_of_state batch '()'
+            echo "-- anchor --"
+            dfx canister call proof_of_state anchor '()'
+            echo "-- get_batches --"
+            dfx canister call proof_of_state get_batches '()'
+          } | tee "$LOG"
+          echo "log-path=$LOG" >> $GITHUB_OUTPUT
+
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-anchor-logs
+          path: ${{ steps.flow.outputs.log-path }}
+
+      - name: Stop replica
+        if: always()
+        run: dfx stop || true
