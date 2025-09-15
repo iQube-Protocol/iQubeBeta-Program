@@ -75,71 +75,171 @@ jobs:
           npm run -w apps/21sats-market build || true
 
   e2e-anchor:
-    name: E2E Anchor Flow (dfx local)
+    name: "E2E Anchor Flow (dfx local)"
     runs-on: ubuntu-latest
     needs: build-canisters
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
+      
       - name: Setup Rust with wasm32 target
-        uses: dtolnay/rust-toolchain@stable
+        uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: 1.89.0
-          targets: wasm32-unknown-unknown
-
+          target: wasm32-unknown-unknown
+          
       - name: Install dfx 0.29.1
-        shell: bash
         run: |
-          set -e
-          # Direct binary download for CI reliability
-          DFX_VERSION="0.29.1"
-          wget -O dfx.tar.gz "https://github.com/dfinity/sdk/releases/download/${DFX_VERSION}/dfx-${DFX_VERSION}-x86_64-linux.tar.gz"
-          tar -xzf dfx.tar.gz
-          sudo mv dfx /usr/local/bin/dfx
-          chmod +x /usr/local/bin/dfx
+          wget https://github.com/dfinity/sdk/releases/download/0.29.1/dfx-0.29.1-x86_64-linux.tar.gz
+          tar -xzf dfx-0.29.1-x86_64-linux.tar.gz
+          sudo mv dfx /usr/local/bin/
           dfx --version
-
+          
       - name: Start replica
         run: |
-          set -e
           dfx start --background --clean
-          # wait for replica
           sleep 5
-
+          
       - name: Update Cargo.lock
-        run: |
-          set -e
-          # Update Cargo.lock to match current dependencies
-          cargo update
-
+        run: cargo update
+        
       - name: Deploy proof_of_state and run anchor flow
-        id: flow
         run: |
-          set -e
-          LOG=anchor_flow.log
+          # Deploy only proof_of_state canister for anchor flow test
+          dfx deploy proof_of_state
+          
+          # Test the anchor flow: issue_receipt -> batch -> anchor -> get_batches
           {
-            echo "-- deploy --"
-            dfx deploy proof_of_state
             echo "-- get_pending_count --"
-            dfx canister call proof_of_state get_pending_count '()'
+            dfx canister call proof_of_state get_pending_count
+            
             echo "-- issue_receipt --"
-            dfx canister call proof_of_state issue_receipt '("deadbeefdeadbeefdeadbeefdeadbeef")'
+            RECEIPT_ID=$(dfx canister call proof_of_state issue_receipt '("deadbeefdeadbeefdeadbeefdeadbeef")' | grep -o '"[^"]*"' | tr -d '"')
+            echo $RECEIPT_ID
+            
             echo "-- batch --"
-            dfx canister call proof_of_state batch '()'
+            BATCH_ROOT=$(dfx canister call proof_of_state batch | grep -o '"[^"]*"' | tr -d '"')
+            echo $BATCH_ROOT
+            
             echo "-- anchor --"
-            dfx canister call proof_of_state anchor '()'
+            dfx canister call proof_of_state anchor
+            
             echo "-- get_batches --"
-            dfx canister call proof_of_state get_batches '()'
-          } | tee "$LOG"
-          echo "log-path=$LOG" >> $GITHUB_OUTPUT
-
+            dfx canister call proof_of_state get_batches
+          } | tee anchor_flow.log
+        
       - name: Upload logs
         uses: actions/upload-artifact@v4
         with:
           name: e2e-anchor-logs
-          path: ${{ steps.flow.outputs.log-path }}
-
+          path: anchor_flow.log
+          if-no-files-found: warn
+          
       - name: Stop replica
-        if: always()
-        run: dfx stop || true
+        run: dfx stop
+
+  e2e-cross-chain:
+    name: "E2E Cross-Chain DVN (dfx local)"
+    runs-on: ubuntu-latest
+    needs: build-canisters
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Rust with wasm32 target
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: 1.89.0
+          target: wasm32-unknown-unknown
+          
+      - name: Install dfx 0.29.1
+        run: |
+          wget https://github.com/dfinity/sdk/releases/download/0.29.1/dfx-0.29.1-x86_64-linux.tar.gz
+          tar -xzf dfx-0.29.1-x86_64-linux.tar.gz
+          sudo mv dfx /usr/local/bin/
+          dfx --version
+          
+      - name: Start replica
+        run: |
+          dfx start --background --clean
+          sleep 5
+          
+      - name: Update Cargo.lock
+        run: cargo update
+        
+      - name: Deploy cross-chain service and run DVN flow
+        run: |
+          # Deploy cross-chain service canister
+          dfx deploy cross_chain_service
+          
+          # Test LayerZero DVN message verification E2E flow
+          {
+            echo "=== Cross-Chain DVN Message Verification E2E Test ==="
+            
+            echo "-- get_pending_messages (should be empty) --"
+            dfx canister call cross_chain_service get_pending_messages
+            
+            echo "-- submit_dvn_message --"
+            MESSAGE_ID=$(dfx canister call cross_chain_service submit_dvn_message '(
+              record {
+                id = "msg_001";
+                source_chain = 1 : nat32;
+                destination_chain = 137 : nat32;
+                payload = vec {1; 2; 3; 4};
+                nonce = 12345 : nat64;
+                sender = "0x1234567890abcdef1234567890abcdef12345678";
+                timestamp = 1726437600000 : nat64;
+              }
+            )' | grep -o '"[^"]*"' | tr -d '"')
+            echo "Submitted message: $MESSAGE_ID"
+            
+            echo "-- get_dvn_message --"
+            dfx canister call cross_chain_service get_dvn_message '("msg_001")'
+            
+            echo "-- submit_attestation (DVN 1) --"
+            dfx canister call cross_chain_service submit_attestation '(
+              "msg_001",
+              "dvn_validator_1",
+              vec {0xde; 0xad; 0xbe; 0xef}
+            )'
+            
+            echo "-- get_message_attestations (1 attestation) --"
+            dfx canister call cross_chain_service get_message_attestations '("msg_001")'
+            
+            echo "-- submit_attestation (DVN 2) --"
+            dfx canister call cross_chain_service submit_attestation '(
+              "msg_001", 
+              "dvn_validator_2",
+              vec {0xca; 0xfe; 0xba; 0xbe}
+            )'
+            
+            echo "-- get_message_attestations (2 attestations - ready for execution) --"
+            dfx canister call cross_chain_service get_message_attestations '("msg_001")'
+            
+            echo "-- monitor_evm_transaction --"
+            dfx canister call cross_chain_service monitor_evm_transaction '(
+              1 : nat32,
+              "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
+              "https://eth-mainnet.g.alchemy.com/v2/demo"
+            )'
+            
+            echo "-- verify_layerzero_message (mock DVN endpoint) --"
+            dfx canister call cross_chain_service verify_layerzero_message '(
+              137 : nat32,
+              "0x1234567890abcdef1234567890abcdef12345678",
+              "https://api.layerzero.network/v1/dvn"
+            )'
+            
+            echo "-- get_pending_messages (should show our message) --"
+            dfx canister call cross_chain_service get_pending_messages
+            
+            echo "=== Cross-Chain DVN E2E Test Complete ==="
+          } | tee cross_chain_flow.log
+        
+      - name: Upload logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-cross-chain-logs
+          path: cross_chain_flow.log
+          if-no-files-found: warn
+          
+      - name: Stop replica
+        run: dfx stop
