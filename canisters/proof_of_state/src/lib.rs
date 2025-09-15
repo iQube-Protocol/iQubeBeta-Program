@@ -1,10 +1,8 @@
 use candid::{CandidType, Deserialize, Principal};
-use ic_cdk::{query, update, call};
-use sha2::{Digest, Sha256};
+use ic_cdk::{query, update};
+use std::cell::RefCell;
 use std::collections::HashMap;
-
-// BTC Signer canister ID - will be set during deployment
-const BTC_SIGNER_CANISTER_ID: &str = "btc_signer_psbt"; // Use canister name for local deployment
+use sha2::{Sha256, Digest};
 
 #[derive(CandidType, Deserialize, Clone)]
 pub struct Receipt {
