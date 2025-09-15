@@ -124,3 +124,30 @@ pub fn get_pending_count() -> usize {
 
 // Export Candid interface
 ic_cdk::export_candid!();
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn issue_and_count_pending() {
+        let before = get_pending_count();
+        let id = issue_receipt("deadbeef".to_string());
+        assert!(id.starts_with("receipt_"));
+        let after = get_pending_count();
+        assert_eq!(after, before + 1);
+    }
+
+    #[test]
+    fn batch_and_anchor_mock() {
+        // Ensure at least one receipt exists
+        let _ = issue_receipt("cafebabe".to_string());
+        let root = batch();
+        assert!(!root.is_empty());
+        let batches = get_batches();
+        assert!(!batches.is_empty());
+        // anchor() is async but uses mock values; should succeed
+        let res = futures::executor::block_on(anchor());
+        assert!(res.contains("Anchored batch") || res == "No batches to anchor");
+    }
+}

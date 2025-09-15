@@ -13,3 +13,6 @@ ic-cdk-timers = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = "0.10"
+
+[dev-dependencies]
+futures = "0.3"
