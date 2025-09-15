@@ -22,9 +22,9 @@ pub struct MerkleBatch {
 }
 
 thread_local! {
-    static RECEIPTS: std::cell::RefCell<HashMap<String, Receipt>> = std::cell::RefCell::new(HashMap::new());
-    static BATCHES: std::cell::RefCell<Vec<MerkleBatch>> = std::cell::RefCell::new(Vec::new());
-    static PENDING_RECEIPTS: std::cell::RefCell<Vec<Receipt>> = std::cell::RefCell::new(Vec::new());
+    static RECEIPTS: RefCell<HashMap<String, Receipt>> = RefCell::new(HashMap::new());
+    static BATCHES: RefCell<Vec<MerkleBatch>> = RefCell::new(Vec::new());
+    static PENDING_RECEIPTS: RefCell<Vec<Receipt>> = RefCell::new(Vec::new());
 }
 
 #[update]
