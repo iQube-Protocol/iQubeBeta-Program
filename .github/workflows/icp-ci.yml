@@ -34,11 +34,11 @@ jobs:
           RUSTFLAGS: "-C target-feature=+atomics,+bulk-memory,+mutable-globals"
         run: |
           set -e
-          # Build each canister crate with --locked matching local build
-          cargo build --target wasm32-unknown-unknown --release -p proof_of_state --locked
-          cargo build --target wasm32-unknown-unknown --release -p btc_signer_psbt --locked
-          cargo build --target wasm32-unknown-unknown --release -p cross_chain_service --locked
-          cargo build --target wasm32-unknown-unknown --release -p evm_rpc --locked
+          # Build each canister crate (remove --locked due to Cargo.lock updates)
+          cargo build --target wasm32-unknown-unknown --release -p proof_of_state
+          cargo build --target wasm32-unknown-unknown --release -p btc_signer_psbt
+          cargo build --target wasm32-unknown-unknown --release -p cross_chain_service
+          cargo build --target wasm32-unknown-unknown --release -p evm_rpc
 
   web-and-sdk:
     name: Lint and build web + SDK
