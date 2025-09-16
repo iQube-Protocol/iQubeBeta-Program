@@ -1,1 +1,6 @@
-{}
+{
+  "app/page.tsx -> @iqube/sdk-js": {
+    "id": "app/page.tsx -> @iqube/sdk-js",
+    "files": []
+  }
+}

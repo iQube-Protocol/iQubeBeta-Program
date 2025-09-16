@@ -1,0 +1,30 @@
+-- deploy --
+-- get_pending_count --
+(0 : nat64)
+-- issue_receipt --
+("receipt_1757968301847892246")
+-- batch --
+("9ed21d98b8b1b3b377a6a6b5ab7355165271b842d915529923b3f11788d6def6")
+-- anchor --
+(
+  "Anchored batch 9ed21d98b8b1b3b377a6a6b5ab7355165271b842d915529923b3f11788d6def6 to BTC",
+)
+-- get_batches --
+(
+  vec {
+    record {
+      root = "9ed21d98b8b1b3b377a6a6b5ab7355165271b842d915529923b3f11788d6def6";
+      created_at = 1_757_968_303_078_999_228 : nat64;
+      btc_anchor_txid = opt "mock_txid_123";
+      btc_block_height = opt (800_000 : nat64);
+      receipts = vec {
+        record {
+          id = "receipt_1757968301847892246";
+          timestamp = 1_757_968_301_847_892_246 : nat64;
+          data_hash = "deadbeefdeadbeefdeadbeefdeadbeef";
+          merkle_proof = vec {};
+        };
+      };
+    };
+  },
+)

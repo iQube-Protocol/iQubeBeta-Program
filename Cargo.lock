@@ -57,6 +57,7 @@ name = "btc_signer_psbt"
 version = "0.1.0"
 dependencies = [
  "candid",
+ "futures",
  "hex",
  "ic-cdk",
  "serde",
@@ -483,6 +484,7 @@ name = "proof_of_state"
 version = "0.1.0"
 dependencies = [
  "candid",
+ "futures",
  "ic-cdk",
  "ic-cdk-timers",
  "serde",

@@ -12,5 +12,12 @@
     "test": "echo \"(add tests)\"",
     "format": "echo \"(add formatter)\""
   },
-  "devDependencies": { "typescript": "^5.5.0" }
+  "devDependencies": {
+    "typescript": "^5.5.0"
+  },
+  "dependencies": {
+    "@dfinity/agent": "^3.2.4",
+    "@dfinity/candid": "^3.2.4",
+    "@dfinity/principal": "^3.2.4"
+  }
 }

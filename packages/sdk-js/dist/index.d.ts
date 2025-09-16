@@ -1,4 +1,3 @@
-export * from './types/iqube';
 import type { AnchorStatus, DualLockStatus } from './types/iqube';
 export declare function getAnchorStatus(iQubeId: string): Promise<AnchorStatus>;
 export declare function getDualLockStatus(iQubeId: string): Promise<DualLockStatus>;
@@ -12,3 +11,5 @@ export declare function getEVMTransactionStatus(chainId: number, txHash: string)
     gasUsed?: number;
 }>;
 export declare function getOrdinalPresence(iqubeId: string): Promise<boolean>;
+export declare function initializeEVMRPC(): Promise<void>;
+export declare function getSupportedChains(): Promise<any[]>;
