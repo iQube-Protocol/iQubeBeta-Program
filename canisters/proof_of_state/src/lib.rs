@@ -25,6 +25,7 @@ thread_local! {
     static RECEIPTS: RefCell<HashMap<String, Receipt>> = RefCell::new(HashMap::new());
     static BATCHES: RefCell<Vec<MerkleBatch>> = RefCell::new(Vec::new());
     static PENDING_RECEIPTS: RefCell<Vec<Receipt>> = RefCell::new(Vec::new());
+    static BURN_STATES: RefCell<HashMap<String, BurnState>> = RefCell::new(HashMap::new());
 }
 
 #[update]
@@ -121,6 +122,26 @@ pub async fn anchor() -> String {
         }
         None => "No batches to anchor".to_string(),
     }
+}
+
+#[derive(CandidType, Deserialize, Clone)]
+pub struct BurnState {
+    pub receipt_id: String,
+    pub message_id: String,
+    pub burned: bool,
+    pub timestamp: u64,
+}
+
+#[update]
+pub fn set_burn_state(receipt_id: String, message_id: String, burned: bool) -> String {
+    let state = BurnState { receipt_id: receipt_id.clone(), message_id, burned, timestamp: ic_cdk::api::time() };
+    BURN_STATES.with(|b| { b.borrow_mut().insert(receipt_id.clone(), state); });
+    "ok".to_string()
+}
+
+#[query]
+pub fn get_burn_state(receipt_id: String) -> Option<BurnState> {
+    BURN_STATES.with(|b| b.borrow().get(&receipt_id).cloned())
 }
 
 #[query]

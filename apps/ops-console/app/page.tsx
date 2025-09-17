@@ -1,12 +1,21 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { ethers } from 'ethers';
+import * as bitcoin from 'bitcoinjs-lib';
+import * as ecc from 'tiny-secp256k1';
+import { ECPairFactory } from 'ecpair';
 import { 
   getAnchorStatus, 
   getDualLockStatus, 
   submitForAnchoring, 
   getEVMTransactionStatus 
 } from '@iqube/sdk-js';
+
+// Initialize ECC library for bitcoinjs
+bitcoin.initEccLib(ecc);
+const TESTNET = bitcoin.networks.testnet;
+const ECPair = ECPairFactory(ecc);
 
 interface CanisterStatus {
   name: string;
@@ -30,6 +39,11 @@ export default function OpsConsole() {
   const [sepoliaAccount, setSepoliaAccount] = useState<string | null>(null);
   const [amoyAccount, setAmoyAccount] = useState<string | null>(null);
   const [btcPrivKey, setBtcPrivKey] = useState<string>('');
+  const [amoyLatestTx, setAmoyLatestTx] = useState<string | null>(null);
+  const [btcAddress, setBtcAddress] = useState<string | null>(null);
+  const [btcUtxos, setBtcUtxos] = useState<any[]>([]);
+  const [btcLatestTx, setBtcLatestTx] = useState<string | null>(null);
+  const [btcBusy, setBtcBusy] = useState<boolean>(false);
 
   useEffect(() => {
     async function loadData() {
@@ -73,6 +87,279 @@ export default function OpsConsole() {
         timestamp: new Date().toISOString(),
         error: error instanceof Error ? error.message : 'Unknown error',
         status: 'error'
+      }]);
+    }
+  };
+
+  // Small helper to avoid forever-hangs
+  const fetchWithTimeout = async (input: RequestInfo | URL, init: RequestInit & { timeoutMs?: number } = {}) => {
+    const { timeoutMs = 10000, ...rest } = init;
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      return await fetch(input, { ...rest, signal: controller.signal });
+    } finally {
+      clearTimeout(id);
+    }
+  };
+
+  // ===== Bitcoin helpers and actions =====
+  const deriveBtcAddressFromWIF = (wif: string): string => {
+    const keyPair = ECPair.fromWIF(wif, TESTNET);
+    const { address } = bitcoin.payments.p2wpkh({ pubkey: keyPair.publicKey, network: TESTNET });
+    if (!address) throw new Error('Failed to derive address');
+    return address;
+  };
+
+  const fetchFeeRate = async (): Promise<number> => {
+    try {
+      const res = await fetch('/api/btc/fee', { cache: 'no-store' });
+      const data = await res.json();
+      return Math.ceil(data['1'] || data['2'] || 5);
+    } catch {
+      return 5;
+    }
+  };
+
+  const handleBtcDeriveAddress = async () => {
+    try {
+      if (!btcPrivKey) throw new Error('Enter testnet WIF first');
+      const addr = deriveBtcAddressFromWIF(btcPrivKey.trim());
+      setBtcAddress(addr);
+      setTestResults(prev => [...prev, { type: 'btc_address', timestamp: new Date().toISOString(), data: { address: addr }, status: 'success' }]);
+    } catch (e: any) {
+      setTestResults(prev => [...prev, { type: 'btc_address_error', timestamp: new Date().toISOString(), error: e?.message || 'derive failed', status: 'error' }]);
+    }
+  };
+
+  const handleBtcFetchUtxos = async () => {
+    try {
+      if (!btcAddress) throw new Error('Derive address first');
+      setBtcBusy(true);
+      const res = await fetchWithTimeout(`/api/btc/utxos?address=${encodeURIComponent(btcAddress)}`, { cache: 'no-store', timeoutMs: 12000 });
+      if (!res.ok) {
+        const body = await res.text();
+        throw new Error(`UTXO fetch failed (${res.status}): ${body?.slice(0,200)}`);
+      }
+      const utxos = await res.json();
+      setBtcUtxos(utxos);
+      setTestResults(prev => [...prev, { type: 'btc_utxos', timestamp: new Date().toISOString(), data: { count: utxos.length, utxos }, status: 'success' }]);
+    } catch (e: any) {
+      setTestResults(prev => [...prev, { type: 'btc_utxos_error', timestamp: new Date().toISOString(), error: e?.message || 'utxo fetch failed', status: 'error' }]);
+    } finally {
+      setBtcBusy(false);
+    }
+  };
+
+  const handleBtcBroadcastTestTx = async () => {
+    try {
+      if (!btcPrivKey) throw new Error('Enter WIF');
+      if (!btcAddress) throw new Error('Derive address first');
+      setBtcBusy(true);
+      const keyPair = ECPair.fromWIF(btcPrivKey.trim(), TESTNET);
+      // refresh utxos via local proxy to avoid CORS/timeouts
+      const utxoRes = await fetchWithTimeout(`/api/btc/utxos?address=${encodeURIComponent(btcAddress)}`, { cache: 'no-store', timeoutMs: 12000 });
+      if (!utxoRes.ok) {
+        const body = await utxoRes.text();
+        throw new Error(`UTXO fetch failed (${utxoRes.status}): ${body?.slice(0,200)}`);
+      }
+      const utxos: Array<{ txid: string; vout: number; value: number }> = await utxoRes.json();
+      if (!utxos.length) throw new Error('No UTXOs found. Fund the address from faucet.');
+      const utxo = utxos.sort((a,b) => b.value - a.value)[0];
+      const feeRate = await fetchFeeRate();
+
+      const psbt = new bitcoin.Psbt({ network: TESTNET });
+      const txHexRes = await fetch(`/api/btc/txhex?txid=${encodeURIComponent(utxo.txid)}`, { cache: 'no-store' });
+      const txHex = await txHexRes.text();
+
+      const p2wpkh = bitcoin.payments.p2wpkh({ pubkey: keyPair.publicKey, network: TESTNET });
+      psbt.addInput({
+        hash: utxo.txid,
+        index: utxo.vout,
+        witnessUtxo: { script: p2wpkh.output!, value: utxo.value },
+        nonWitnessUtxo: Buffer.from(txHex, 'hex'),
+      });
+
+      const vbytes = 110; // rough estimate
+      const fee = vbytes * feeRate;
+      const outputValue = utxo.value - fee - 100; // dust buffer
+      if (outputValue <= 546) throw new Error('Insufficient funds for fee');
+      psbt.addOutput({ address: btcAddress, value: outputValue });
+
+      psbt.signAllInputs(keyPair);
+      psbt.finalizeAllInputs();
+      const txHexSigned = psbt.extractTransaction().toHex();
+
+      const broadcast = await fetch('/api/btc/broadcast', { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: txHexSigned });
+      const txid = await broadcast.text();
+      setBtcLatestTx(txid);
+      setTestResults(prev => [...prev, { type: 'btc_broadcast', timestamp: new Date().toISOString(), data: { txid, feeRate }, status: 'success' }]);
+    } catch (e: any) {
+      setTestResults(prev => [...prev, { type: 'btc_broadcast_error', timestamp: new Date().toISOString(), error: e?.message || 'broadcast failed', status: 'error' }]);
+    } finally {
+      setBtcBusy(false);
+    }
+  };
+
+  const handleBtcGenerateKey = async () => {
+    try {
+      setBtcBusy(true);
+      const keyPair = ECPair.makeRandom({ network: TESTNET });
+      const wif = keyPair.toWIF();
+      const { address } = bitcoin.payments.p2wpkh({ pubkey: keyPair.publicKey, network: TESTNET });
+      if (!address) throw new Error('Failed to derive address');
+      setBtcPrivKey(wif);
+      setBtcAddress(address);
+      setTestResults(prev => [...prev, { type: 'btc_generate_key', timestamp: new Date().toISOString(), data: { address, wifMasked: `${wif.slice(0,4)}...${wif.slice(-4)}` }, status: 'success' }]);
+    } catch (e: any) {
+      setTestResults(prev => [...prev, { type: 'btc_generate_key_error', timestamp: new Date().toISOString(), error: e?.message || 'generate failed', status: 'error' }]);
+    } finally {
+      setBtcBusy(false);
+    }
+  };
+
+  // EVM mint on Polygon Amoy via MetaMask + ethers.js
+  const AMOY_CONTRACT = '0x632E1d32e34F0A690635BBcbec0D066daa448ede';
+  const MIN_ABI_MINT_QUBE = [
+    {
+      inputs: [
+        { internalType: 'string', name: 'uri', type: 'string' },
+        { internalType: 'string', name: 'encryptionKey', type: 'string' },
+      ],
+      name: 'mintQube',
+      outputs: [],
+      stateMutability: 'nonpayable',
+      type: 'function',
+    },
+    {
+      inputs: [{ internalType: 'uint256', name: 'tokenId', type: 'uint256' }],
+      name: 'getMetaQubeLocation',
+      outputs: [{ internalType: 'string', name: '', type: 'string' }],
+      stateMutability: 'view',
+      type: 'function',
+    },
+    {
+      inputs: [{ internalType: 'uint256', name: 'tokenId', type: 'uint256' }],
+      name: 'getEncryptionKey',
+      outputs: [{ internalType: 'string', name: '', type: 'string' }],
+      stateMutability: 'view',
+      type: 'function',
+    },
+    {
+      inputs: [{ internalType: 'uint256', name: 'tokenId', type: 'uint256' }],
+      name: 'ownerOf',
+      outputs: [{ internalType: 'address', name: '', type: 'address' }],
+      stateMutability: 'view',
+      type: 'function',
+    },
+    {
+      inputs: [{ internalType: 'uint256', name: 'tokenId', type: 'uint256' }],
+      name: 'tokenURI',
+      outputs: [{ internalType: 'string', name: '', type: 'string' }],
+      stateMutability: 'view',
+      type: 'function',
+    },
+    {
+      anonymous: false,
+      inputs: [
+        { indexed: true, internalType: 'address', name: 'from', type: 'address' },
+        { indexed: true, internalType: 'address', name: 'to', type: 'address' },
+        { indexed: true, internalType: 'uint256', name: 'tokenId', type: 'uint256' },
+      ],
+      name: 'Transfer',
+      type: 'event',
+    },
+  ] as const;
+
+  const handleMintOnAmoy = async () => {
+    try {
+      const eth = (window as any).ethereum;
+      if (!eth) throw new Error('MetaMask not found');
+
+      // Ensure Amoy network
+      const accounts = await eth.request({ method: 'eth_requestAccounts' });
+      try {
+        await eth.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: '0x13882' }] });
+      } catch (e: any) {
+        if (e?.code === 4902) {
+          await eth.request({
+            method: 'wallet_addEthereumChain',
+            params: [{
+              chainId: '0x13882',
+              chainName: 'Polygon Amoy',
+              nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 },
+              rpcUrls: ['https://rpc-amoy.polygon.technology'],
+              blockExplorerUrls: ['https://amoy.polygonscan.com'],
+            }],
+          });
+        } else {
+          throw e;
+        }
+      }
+      setAmoyAccount(accounts?.[0] || null);
+
+      // Build signer & contract
+      const provider = new ethers.BrowserProvider(eth);
+      const signer = await provider.getSigner();
+      const contract = new ethers.Contract(AMOY_CONTRACT, MIN_ABI_MINT_QUBE, signer);
+
+      // Simple test payload (replace with real URI/key later)
+      const testUri = `ipfs://test-${Date.now()}`;
+      const testKey = `key-${Math.random().toString(16).slice(2, 10)}`;
+
+      const tx = await contract.mintQube(testUri, testKey);
+      const fromAddr = await signer.getAddress();
+      setTestResults(prev => [...prev, {
+        type: 'amoy_mint_submitted',
+        timestamp: new Date().toISOString(),
+        data: { hash: tx.hash, from: fromAddr, contract: AMOY_CONTRACT, uri: testUri },
+        status: 'success',
+      }]);
+
+      setAmoyLatestTx(tx.hash);
+
+      // Optionally wait for 1 confirmation
+      const receipt = await tx.wait();
+      let mintedTokenId: string | null = null;
+      try {
+        // Parse Transfer event to extract tokenId
+        const transferTopic = ethers.id('Transfer(address,address,uint256)');
+        const log = receipt?.logs?.find((l: any) => l.topics && l.topics[0] === transferTopic);
+        if (log) {
+          // tokenId is topic[3]
+          const tokenIdHex = log.topics[3];
+          mintedTokenId = BigInt(tokenIdHex).toString();
+        }
+      } catch {}
+
+      // Fetch metadata per spec if possible
+      let onchainMeta: any = {};
+      try {
+        if (mintedTokenId) {
+          const [metaLoc, encKey, owner, uri] = await Promise.all([
+            contract.getMetaQubeLocation(mintedTokenId),
+            contract.getEncryptionKey(mintedTokenId),
+            contract.ownerOf(mintedTokenId),
+            contract.tokenURI(mintedTokenId).catch(() => ''),
+          ]);
+          onchainMeta = { tokenId: mintedTokenId, metaLoc, encKey, owner, uri };
+        }
+      } catch (e) {
+        onchainMeta = { tokenId: mintedTokenId, note: 'Post-mint readbacks failed or not available' };
+      }
+
+      setTestResults(prev => [...prev, {
+        type: 'amoy_mint_confirmed',
+        timestamp: new Date().toISOString(),
+        data: { hash: receipt?.hash ?? tx.hash, blockNumber: receipt?.blockNumber, ...onchainMeta },
+        status: 'success',
+      }]);
+    } catch (error: any) {
+      setTestResults(prev => [...prev, {
+        type: 'amoy_mint_error',
+        timestamp: new Date().toISOString(),
+        error: error?.message || 'Unknown error',
+        status: 'error',
       }]);
     }
   };
@@ -500,7 +787,7 @@ export default function OpsConsole() {
               </div>
               <div className="flex justify-between">
                 <span>Latest TX:</span>
-                <span className="font-mono text-xs">0x789xyz...012abc</span>
+                <span className="font-mono text-xs">{amoyLatestTx ? `${amoyLatestTx.slice(0,8)}...${amoyLatestTx.slice(-6)}` : '—'}</span>
               </div>
               <div className="flex justify-between">
                 <span>Block:</span>
@@ -512,12 +799,49 @@ export default function OpsConsole() {
               </div>
             </div>
             <div className="mt-3 space-y-2">
-              <button 
-                onClick={() => window.open('https://amoy.polygonscan.com/tx/0x789xyz012abc', '_blank')}
-                className="w-full px-3 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 text-sm"
-              >
-                View on Amoy Explorer
-              </button>
+              {amoyLatestTx ? (
+                <div className="space-y-2">
+                  <a
+                    href={`https://amoy.polygonscan.com/tx/${amoyLatestTx}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block w-full text-center px-3 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 text-sm"
+                  >
+                    View on Amoy Explorer
+                  </a>
+                  <div className="text-xs break-all bg-gray-50 p-2 rounded border border-gray-200">
+                    https://amoy.polygonscan.com/tx/{amoyLatestTx}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={async () => {
+                        const url = `https://amoy.polygonscan.com/tx/${amoyLatestTx}`;
+                        try { await navigator.clipboard.writeText(url); } catch {}
+                      }}
+                      className="px-3 py-2 bg-gray-700 text-white rounded-md text-sm hover:bg-gray-800"
+                    >
+                      Copy URL
+                    </button>
+                    <button
+                      onClick={() => {
+                        const url = `https://amoy.polygonscan.com/tx/${amoyLatestTx}`;
+                        window.open(url, '_blank', 'noopener,noreferrer');
+                      }}
+                      className="px-3 py-2 bg-gray-600 text-white rounded-md text-sm hover:bg-gray-700"
+                    >
+                      Open in New Tab
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  disabled
+                  title="Mint first to generate a transaction hash"
+                  className="w-full px-3 py-2 bg-purple-300 text-white rounded-md text-sm cursor-not-allowed"
+                >
+                  View on Amoy Explorer
+                </button>
+              )}
               <button 
                 onClick={async () => {
                   try {
@@ -562,6 +886,12 @@ export default function OpsConsole() {
               >
                 {amoyAccount ? `Connected: ${amoyAccount.slice(0,6)}...${amoyAccount.slice(-4)}` : 'Connect MetaMask (Amoy)'}
               </button>
+              <button 
+                onClick={handleMintOnAmoy}
+                className="w-full px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm"
+              >
+                Mint on Amoy (MetaMask)
+              </button>
             </div>
           </div>
 
@@ -575,11 +905,7 @@ export default function OpsConsole() {
               </div>
               <div className="flex justify-between">
                 <span>Latest TX:</span>
-                <span className="font-mono text-xs">abc123...def456</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Block:</span>
-                <span>2,850,123</span>
+                <span className="font-mono text-xs">{btcLatestTx ? `${btcLatestTx.slice(0,8)}...${btcLatestTx.slice(-6)}` : '—'}</span>
               </div>
               <div className="flex justify-between">
                 <span>Status:</span>
@@ -587,27 +913,72 @@ export default function OpsConsole() {
               </div>
             </div>
             <div className="mt-3 space-y-2">
-              <button 
-                onClick={() => window.open('https://mempool.space/testnet/tx/abc123def456', '_blank')}
-                className="w-full px-3 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 text-sm"
-              >
-                View on Mempool Explorer
-              </button>
-              <div className="text-xs text-gray-600">
-                Add funds via faucet: 
-                <a className="underline text-blue-600" href="https://bitcoinfaucet.uo1.net/" target="_blank">bitcoinfaucet.uo1.net</a>
-                {' '}or{' '}
-                <a className="underline text-blue-600" href="https://coinfaucet.eu/en/btc-testnet/" target="_blank">coinfaucet.eu</a>
+              <label className="block text-xs text-gray-600">Testnet Private Key (WIF)</label>
+              <input
+                type="password"
+                value={btcPrivKey}
+                onChange={(e) => setBtcPrivKey(e.target.value)}
+                placeholder="Enter WIF (kept in-memory only)"
+                className="w-full px-3 py-2 border rounded-md text-sm"
+              />
+              <div className="text-xs text-gray-600">Derived Address: {btcAddress ? <span className="font-mono">{btcAddress}</span> : '—'}</div>
+              <div className="text-xs text-gray-600">UTXOs: {btcUtxos?.length ?? 0}</div>
+              {btcLatestTx ? (
+                <a
+                  href={`https://mempool.space/testnet/tx/${btcLatestTx}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block w-full text-center px-3 py-2 bg-slate-700 text-white rounded-md hover:bg-slate-800 text-sm"
+                >
+                  View on Bitcoin Testnet Explorer (TX)
+                </a>
+              ) : btcAddress ? (
+                <div className="space-y-2">
+                  <a
+                    href={`https://mempool.space/testnet/address/${btcAddress}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block w-full text-center px-3 py-2 bg-slate-600 text-white rounded-md hover:bg-slate-700 text-sm"
+                  >
+                    View on Bitcoin Testnet Explorer (Address)
+                  </a>
+                  <div className="text-xs break-all bg-gray-50 p-2 rounded border border-gray-200">
+                    https://mempool.space/testnet/address/{btcAddress}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={async () => {
+                        const url = `https://mempool.space/testnet/address/${btcAddress}`;
+                        try { await navigator.clipboard.writeText(url); } catch {}
+                      }}
+                      className="px-3 py-2 bg-gray-700 text-white rounded-md text-sm hover:bg-gray-800"
+                    >
+                      Copy URL
+                    </button>
+                    <button
+                      onClick={() => {
+                        const url = `https://mempool.space/testnet/address/${btcAddress}`;
+                        window.open(url, '_blank', 'noopener,noreferrer');
+                      }}
+                      className="px-3 py-2 bg-gray-600 text-white rounded-md text-sm hover:bg-gray-700"
+                    >
+                      Open in New Tab
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button disabled className="w-full px-3 py-2 bg-slate-300 text-white rounded-md text-sm cursor-not-allowed">View on Bitcoin Testnet Explorer</button>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+                <button onClick={handleBtcGenerateKey} disabled={btcBusy} className="px-3 py-2 bg-emerald-700 text-white rounded-md hover:bg-emerald-800 text-sm disabled:opacity-60">Generate Testnet Key</button>
+                <button onClick={handleBtcDeriveAddress} disabled={btcBusy} className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm disabled:opacity-60">Derive Address</button>
+                <button onClick={handleBtcFetchUtxos} disabled={btcBusy || !btcAddress} className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm disabled:opacity-60">Get UTXOs</button>
+                <button onClick={handleBtcBroadcastTestTx} disabled={btcBusy || !btcAddress} className="px-3 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 text-sm disabled:opacity-60">Broadcast Test TX</button>
               </div>
-              <div className="space-y-2">
-                <input 
-                  type="password" 
-                  placeholder="Enter BTC testnet private key (WIF)"
-                  value={btcPrivKey}
-                  onChange={(e) => setBtcPrivKey(e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded-md text-sm"
-                />
-                <div className="text-xs text-gray-500">Stored only in memory for this session.</div>
+              <div className="text-xs text-gray-500">
+                Faucets:
+                <a href="https://bitcoinfaucet.uo1.net/" target="_blank" rel="noopener noreferrer" className="underline ml-1">UO1</a>,
+                <a href="https://coinfaucet.eu/en/btc-testnet/" target="_blank" rel="noopener noreferrer" className="underline ml-1">CoinFaucet</a>
               </div>
             </div>
           </div>
@@ -622,6 +993,12 @@ export default function OpsConsole() {
               className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
             >
               Mint iQube on ICP
+            </button>
+            <button 
+              onClick={handleMintOnAmoy}
+              className="px-4 py-2 bg-green-700 text-white rounded-md hover:bg-green-800 text-sm"
+            >
+              Mint on Amoy (EVM)
             </button>
             <button 
               onClick={handleGetBitcoinAddress}

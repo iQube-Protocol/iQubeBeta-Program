@@ -1,0 +1,957 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { 
+  getAnchorStatus, 
+  getDualLockStatus, 
+  submitForAnchoring, 
+  getEVMTransactionStatus,
+  initializeEVMRPC,
+  getSupportedChains,
+  mintIQuBeOnICP,
+  anchorBatchesNow,
+  getBitcoinAddress,
+  submitCrossChainMessage,
+  getCrossChainMessageStatus,
+  attestDVNMessage,
+  setBurnState,
+  getBurnState,
+  fetchTestnetUtxos,
+  createSignBroadcastAnchor
+} from '@iqube/sdk-js';
+
+interface CanisterStatus {
+  name: string;
+  status: 'healthy' | 'degraded' | 'down';
+  lastCheck: string;
+  pendingCount?: number;
+  lastActivity?: string;
+}
+
+export default function OpsConsole() {
+  const [anchorStatus, setAnchorStatus] = useState<any>(null);
+  const [dualLockStatus, setDualLockStatus] = useState<any>(null);
+  const [canisters, setCanisters] = useState<CanisterStatus[]>([
+    { name: 'proof_of_state', status: 'healthy', lastCheck: new Date().toISOString() },
+    { name: 'btc_signer_psbt', status: 'healthy', lastCheck: new Date().toISOString() },
+    { name: 'cross_chain_service', status: 'degraded', lastCheck: new Date().toISOString() },
+    { name: 'evm_rpc', status: 'healthy', lastCheck: new Date().toISOString() },
+  ]);
+  const [loading, setLoading] = useState(true);
+  const [testData, setTestData] = useState('');
+  const [testResults, setTestResults] = useState<any[]>([]);
+  const [supportedChains, setSupportedChains] = useState<any[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [ethTxHash, setEthTxHash] = useState('');
+  const [polygonTxHash, setPolygonTxHash] = useState('');
+  const [btcTxId, setBtcTxId] = useState('');
+  // EVM/MetaMask state
+  const AMOY_CHAIN_ID = 80002;
+  const AMOY_CONTRACT = '0x632E1d32e34F0A690635BBcbec0D066daa448ede';
+  const [mmAccount, setMmAccount] = useState<string>('');
+  const [evmMetaUri, setEvmMetaUri] = useState<string>('');
+  const [evmSecretKey, setEvmSecretKey] = useState<string>('');
+  const [evmTxHash, setEvmTxHash] = useState<string>('');
+  const [viewTokenId, setViewTokenId] = useState<string>('');
+  const [viewOwner, setViewOwner] = useState<string>('');
+  const [viewTokenURI, setViewTokenURI] = useState<string>('');
+  const [viewEncKey, setViewEncKey] = useState<string>('');
+  const [viewDecryptLink, setViewDecryptLink] = useState<string>('');
+  const [viewBusy, setViewBusy] = useState<boolean>(false);
+  const [viewError, setViewError] = useState<string>('');
+  // Metadata creator state
+  const [pinataJwt, setPinataJwt] = useState<string>('');
+  const [mdName, setMdName] = useState<string>('iQube NFT');
+  const [mdDesc, setMdDesc] = useState<string>('An encrypted iQube NFT');
+  const [mdAttrs, setMdAttrs] = useState<string>('{"Encrypted":"True"}');
+  const [mdImageCid, setMdImageCid] = useState<string>('');
+  const [mdFile, setMdFile] = useState<File | null>(null);
+  const [mdBusy, setMdBusy] = useState<boolean>(false);
+  const [mdError, setMdError] = useState<string>('');
+  const [mdInfo, setMdInfo] = useState<string>('');
+  // Minimal ABI inferred from provided code (mintQube, views, Transfer)
+  const ERC721_MIN_ABI = [
+    {
+      inputs: [
+        { internalType: 'string', name: 'uri', type: 'string' },
+        { internalType: 'string', name: 'key', type: 'string' }
+      ],
+      name: 'mintQube',
+      outputs: [],
+      stateMutability: 'nonpayable',
+      type: 'function'
+    },
+    {
+      inputs: [{ internalType: 'uint256', name: 'tokenId', type: 'uint256' }],
+      name: 'getBlakQube',
+      outputs: [{ internalType: 'string', name: '', type: 'string' }],
+      stateMutability: 'view',
+      type: 'function'
+    },
+    {
+      inputs: [{ internalType: 'uint256', name: 'tokenId', type: 'uint256' }],
+      name: 'getEncryptionKey',
+      outputs: [{ internalType: 'string', name: '', type: 'string' }],
+      stateMutability: 'view',
+      type: 'function'
+    },
+    {
+      inputs: [{ internalType: 'uint256', name: 'tokenId', type: 'uint256' }],
+      name: 'ownerOf',
+      outputs: [{ internalType: 'address', name: '', type: 'address' }],
+      stateMutability: 'view',
+      type: 'function'
+    },
+    {
+      anonymous: false,
+      inputs: [
+        { indexed: true, internalType: 'address', name: 'from', type: 'address' },
+        { indexed: true, internalType: 'address', name: 'to', type: 'address' },
+        { indexed: true, internalType: 'uint256', name: 'tokenId', type: 'uint256' }
+      ],
+      name: 'Transfer',
+      type: 'event'
+    }
+  ] as const;
+
+  async function retrieveByTokenId() {
+    try {
+      setViewBusy(true); setViewError(''); setViewDecryptLink('');
+      if (!viewTokenId) throw new Error('Enter token ID');
+      await ensureMetaMaskAmoy();
+      const eth = (window as any).ethereum;
+      const { ethers } = await import('ethers');
+      const provider = new ethers.BrowserProvider(eth);
+      const contract = new ethers.Contract(AMOY_CONTRACT, ERC721_MIN_ABI as any, provider);
+      const owner = await contract.ownerOf(viewTokenId);
+      const uri = await contract.getBlakQube(viewTokenId);
+      const key = await contract.getEncryptionKey(viewTokenId);
+      setViewOwner(owner);
+      setViewTokenURI(uri);
+      setViewEncKey(key);
+    } catch (e:any) {
+      setViewError(String(e));
+    } finally { setViewBusy(false); }
+  }
+
+  async function decryptFromMetadata() {
+    try {
+      setViewBusy(true); setViewError(''); setViewDecryptLink('');
+      if (!viewTokenURI) throw new Error('Token URI not loaded');
+      const gateway = 'https://ipfs.io/ipfs/';
+      const httpUrl = viewTokenURI.startsWith('ipfs://') ? viewTokenURI.replace('ipfs://', gateway) : viewTokenURI;
+      const metaRes = await fetch(httpUrl);
+      if (!metaRes.ok) throw new Error(`Fetch metadata failed: ${metaRes.status}`);
+      const meta = await metaRes.json();
+      let encrypted = '';
+      if (Array.isArray(meta?.attributes)) {
+        const byKey = meta.attributes.find((a:any)=> a?.trait_type === 'blakQubeKey');
+        const byLoc = meta.attributes.find((a:any)=> a?.trait_type === 'blakQubeLocation');
+        encrypted = byLoc?.value || byKey?.value || '';
+      }
+      if (!encrypted) throw new Error('Encrypted payload not found in metadata attributes');
+      if (!viewEncKey) throw new Error('Encryption key not loaded');
+      const decRes = await fetch('https://icubes.onrender.com/decrypt', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: viewEncKey, encryptedText: encrypted })
+      });
+      if (!decRes.ok) throw new Error(`Decrypt API failed: ${decRes.status}`);
+      const dec = await decRes.json();
+      const cid = dec?.response || dec?.data || dec?.cid || '';
+      if (!cid) throw new Error('Decrypt response missing CID');
+      setViewDecryptLink(`${gateway}${cid}`);
+    } catch (e:any) {
+      setViewError(String(e));
+    } finally { setViewBusy(false); }
+  }
+
+  async function pinFileToIPFS(file: File, jwt: string): Promise<string> {
+    const form = new FormData();
+    form.append('file', file);
+    const r = await fetch('https://api.pinata.cloud/pinning/pinFileToIPFS', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${jwt}` },
+      body: form
+    });
+    if (!r.ok) {
+      const t = await r.text().catch(()=> '');
+      throw new Error(`Pinata file pin failed: ${r.status} ${t}`);
+    }
+    const j = await r.json();
+    return j.IpfsHash as string;
+  }
+
+  async function pinJSONToIPFS(obj: any, jwt: string): Promise<string> {
+    const r = await fetch('https://api.pinata.cloud/pinning/pinJSONToIPFS', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${jwt}` },
+      body: JSON.stringify(obj)
+    });
+    if (!r.ok) {
+      const t = await r.text().catch(()=> '');
+      throw new Error(`Pinata json pin failed: ${r.status} ${t}`);
+    }
+    const j = await r.json();
+    return j.IpfsHash as string;
+  }
+
+  async function ensureMetaMaskAmoy(): Promise<string> {
+    const eth = (window as any).ethereum;
+    if (!eth) throw new Error('MetaMask not found');
+    const [acc] = await eth.request({ method: 'eth_requestAccounts' });
+    const chainIdHex = await eth.request({ method: 'eth_chainId' });
+    const toHex = (n: number) => '0x' + n.toString(16);
+    if (parseInt(chainIdHex, 16) !== AMOY_CHAIN_ID) {
+      try {
+        await eth.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: toHex(AMOY_CHAIN_ID) }] });
+      } catch (err: any) {
+        // If chain is not added, attempt to add
+        if (err?.code === 4902) {
+          alert('MetaMask: Adding Polygon Amoy network. Please approve the Add Network request, then the Switch Network request. If the popup closes, click the MetaMask icon to view pending approvals.');
+          await eth.request({
+            method: 'wallet_addEthereumChain',
+            params: [{
+              chainId: toHex(AMOY_CHAIN_ID),
+              chainName: 'Polygon Amoy',
+              nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 },
+              rpcUrls: ['https://rpc-amoy.polygon.technology'],
+              blockExplorerUrls: ['https://amoy.polygonscan.com']
+            }]
+          });
+          // After adding, explicitly switch
+          await eth.request({ method: 'wallet_switchEthereumChain', params: [{ chainId: toHex(AMOY_CHAIN_ID) }] });
+        } else {
+          throw err;
+        }
+      }
+    }
+    setMmAccount(acc);
+    return acc;
+  }
+
+  async function mintEvmInstance() {
+    const eth = (window as any).ethereum;
+    if (!eth) throw new Error('MetaMask not found');
+    if (!evmMetaUri) throw new Error('Enter metadata URI');
+    await ensureMetaMaskAmoy();
+    const provider = new (await import('ethers')).ethers.BrowserProvider(eth);
+    const signer = await provider.getSigner();
+    const contract = new (await import('ethers')).ethers.Contract(AMOY_CONTRACT, ERC721_MIN_ABI as any, signer);
+    const tx = await contract.mintQube(evmMetaUri, evmSecretKey || '');
+    setEvmTxHash(tx.hash);
+    window.open(`https://amoy.polygonscan.com/tx/${tx.hash}`, '_blank');
+  }
+  // Helpers
+  const extractBtcTxId = (s: any): string | null => {
+    try {
+      if (!s) return null;
+      if (typeof s === 'string') {
+        // Expect patterns like: "... txid: <hex>" or just raw hex
+        const m = s.match(/[0-9a-fA-F]{64}/);
+        return m ? m[0] : null;
+      }
+      if (typeof s === 'object') {
+        // Try common shapes
+        if (s.btc_anchor_txid && typeof s.btc_anchor_txid === 'string') return s.btc_anchor_txid;
+        if (s.anchorTxId && typeof s.anchorTxId === 'string') {
+          const m = s.anchorTxId.match(/[0-9a-fA-F]{64}/);
+          return m ? m[0] : null;
+        }
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  };
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        // Initialize EVM RPC canister first
+        await initializeEVMRPC();
+        
+        const [anchor, dualLock, chains] = await Promise.all([
+          getAnchorStatus('test-iqube-1'),
+          getDualLockStatus('test-iqube-1'),
+          getSupportedChains(),
+        ]);
+        setAnchorStatus(anchor);
+        setDualLockStatus(dualLock);
+        console.log('Frontend received chains:', chains);
+        setSupportedChains(chains);
+        
+        // Update canister health status
+        await updateCanisterHealth();
+      } catch (error) {
+        console.error('Failed to load data:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadData();
+    
+    // Set up periodic health checks every 30 seconds
+    const healthCheckInterval = setInterval(updateCanisterHealth, 30000);
+    return () => clearInterval(healthCheckInterval);
+  }, []);
+
+  const updateCanisterHealth = async () => {
+    const updatedCanisters = await Promise.all(
+      canisters.map(async (canister) => {
+        try {
+          let status: 'healthy' | 'degraded' | 'down' = 'healthy';
+          let pendingCount: number | undefined;
+          let lastActivity: string | undefined;
+
+          // Check each canister's specific health indicators using SDK
+          if (canister.name === 'proof_of_state') {
+            // Use SDK to get pending count - this will show live simulation data
+            try {
+              const { getAnchorStatus } = await import('@iqube/sdk-js');
+              const anchorData = await getAnchorStatus('health-check');
+              pendingCount = Math.floor(Math.random() * 3); // Simulate pending count
+              status = pendingCount > 5 ? 'degraded' : 'healthy';
+            } catch {
+              pendingCount = 0;
+            }
+          } else if (canister.name === 'cross_chain_service') {
+            // Use SDK to get cross-chain status
+            try {
+              const { getDualLockStatus } = await import('@iqube/sdk-js');
+              const crossChainData = await getDualLockStatus('health-check');
+              pendingCount = Math.floor(Math.random() * 2); // Simulate pending messages
+              status = 'healthy';
+            } catch {
+              pendingCount = 0;
+            }
+          }
+
+          return {
+            ...canister,
+            status,
+            lastCheck: new Date().toISOString(),
+            pendingCount,
+            lastActivity,
+          };
+        } catch (error) {
+          return {
+            ...canister,
+            status: 'down' as const,
+            lastCheck: new Date().toISOString(),
+          };
+        }
+      })
+    );
+    
+    setCanisters(updatedCanisters);
+  };
+
+  const handleSubmitForAnchoring = async () => {
+    if (!testData.trim()) return;
+    
+    try {
+      const result = await submitForAnchoring(testData, JSON.stringify({ 
+        timestamp: new Date().toISOString(),
+        source: 'ops-console-test' 
+      }));
+      
+      setTestResults(prev => [...prev, {
+        type: 'anchor_submit',
+        timestamp: new Date().toISOString(),
+        data: result,
+        status: 'success'
+      }]);
+      
+      setTestData('');
+    } catch (error) {
+      setTestResults(prev => [...prev, {
+        type: 'anchor_submit',
+        timestamp: new Date().toISOString(),
+        error: error instanceof Error ? error.message : 'Unknown error',
+        status: 'error'
+      }]);
+    }
+  };
+
+  const handleTestEVMTransaction = async () => {
+    try {
+      const result = await getEVMTransactionStatus(
+        11155111, // Sepolia
+        '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'
+      );
+      
+      setTestResults(prev => [...prev, {
+        type: 'evm_tx_check',
+        timestamp: new Date().toISOString(),
+        data: result,
+        status: 'success'
+      }]);
+    } catch (error) {
+      setTestResults(prev => [...prev, {
+        type: 'evm_tx_check',
+        timestamp: new Date().toISOString(),
+        error: error instanceof Error ? error.message : 'Unknown error',
+        status: 'error'
+      }]);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-xl">Loading ops console...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 p-8">
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">
+          iQube Operations Console
+        </h1>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          {/* Canister Health */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold mb-4">ICP Canister Health</h2>
+            <div className="space-y-2">
+              {canisters.map((canister) => (
+                <div key={canister.name} className="bg-white p-4 rounded-lg shadow">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-medium text-gray-900">{canister.name}</h3>
+                    <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      canister.status === 'healthy'
+                        ? 'bg-green-100 text-green-800'
+                        : canister.status === 'degraded'
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {canister.status}
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-sm text-gray-600">Last check: {new Date(canister.lastCheck).toLocaleTimeString()}</p>
+                    {canister.pendingCount !== undefined && (
+                      <p className="text-sm text-gray-600">Pending: {canister.pendingCount}</p>
+                    )}
+                    {canister.lastActivity && (
+                      <p className="text-sm text-gray-600">Last activity: {canister.lastActivity}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* BTC Anchors */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold mb-4">BTC Anchor Status</h2>
+            {anchorStatus && (
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span>TX Hash:</span>
+                  <span className="text-sm font-mono">
+                    {anchorStatus.btcTxHash?.slice(0, 8)}...
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Confirmations:</span>
+                  <span>{anchorStatus.confirmations}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Block Height:</span>
+                  <span>{anchorStatus.blockHeight}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Status:</span>
+                  <span className={anchorStatus.isConfirmed ? 'text-green-600' : 'text-yellow-600'}>
+                    {anchorStatus.isConfirmed ? 'Confirmed' : 'Pending'}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Cross-Chain Status */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold mb-4">Cross-Chain Status</h2>
+            {dualLockStatus && (
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span>EVM TX:</span>
+                  <span className="text-sm font-mono">
+                    {dualLockStatus.evmTxHash?.slice(0, 8)}...
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>ICP Receipt:</span>
+                  <span className="text-sm font-mono">
+                    {dualLockStatus.icpReceiptId?.slice(0, 8)}...
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Lock Status:</span>
+                  <span className={dualLockStatus.isLocked ? 'text-green-600' : 'text-yellow-600'}>
+                    {dualLockStatus.isLocked ? 'Locked' : 'Unlocked'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Unlock Height:</span>
+                  <span>{dualLockStatus.unlockHeight}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* EVM (Polygon Amoy) - Mint iQube */}
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <h2 className="text-xl font-semibold mb-4">EVM (Polygon Amoy) - Mint iQube (ERC-721)</h2>
+          <div className="space-y-3">
+            {/* Metadata Creator */}
+            <div className="border rounded p-4 bg-gray-50">
+              <h3 className="font-semibold mb-2">Metadata Creator (Pinata)</h3>
+              {mdError && (
+                <div className="mb-2 p-2 rounded border border-red-300 bg-red-50 text-sm text-red-700">
+                  {mdError}
+                </div>
+              )}
+              {mdInfo && (
+                <div className="mb-2 p-2 rounded border border-green-300 bg-green-50 text-sm text-green-700">
+                  {mdInfo}
+                </div>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <input value={mdName} onChange={(e)=>setMdName(e.target.value)} placeholder="name" className="p-2 border rounded" />
+                <input value={mdDesc} onChange={(e)=>setMdDesc(e.target.value)} placeholder="description" className="p-2 border rounded" />
+              </div>
+              <textarea value={mdAttrs} onChange={(e)=>setMdAttrs(e.target.value)} placeholder='attributes JSON, e.g. {"Encrypted":"True"}' className="w-full p-2 border rounded mt-2 h-24" />
+              <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2 items-center">
+                <input type="file" onChange={(e)=>setMdFile(e.target.files?.[0] || null)} className="p-2 border rounded" />
+                <input value={pinataJwt} onChange={(e)=>setPinataJwt(e.target.value)} placeholder="Pinata JWT (temporary)" className="p-2 border rounded" />
+              </div>
+              <div className="flex gap-2 mt-2">
+                <button disabled={mdBusy || !mdFile || !pinataJwt} onClick={async()=>{
+                  try{
+                    setMdBusy(true);
+                    setMdError(''); setMdInfo('');
+                    if(!mdFile) throw new Error('Choose a file');
+                    if(!pinataJwt) throw new Error('Enter Pinata JWT');
+                    const cid = await pinFileToIPFS(mdFile, pinataJwt);
+                    setMdImageCid(cid);
+                    setMdInfo(`Pinned file CID: ${cid}`);
+                  }catch(e:any){ alert(String(e)); } finally{ setMdBusy(false);} 
+                }} className="px-3 py-2 bg-gray-700 text-white rounded">Pin File</button>
+                <button disabled={mdBusy || !pinataJwt} onClick={async()=>{
+                  try{
+                    setMdBusy(true);
+                    setMdError(''); setMdInfo('');
+                    const attrs = (()=>{ try { return JSON.parse(mdAttrs || '{}'); } catch { return {}; } })();
+                    const obj:any = { name: mdName, description: mdDesc, attributes: [] as any[] };
+                    Object.entries(attrs).forEach(([k,v])=> obj.attributes.push({ trait_type: k, value: v as any }));
+                    if(mdImageCid) obj.image = `ipfs://${mdImageCid}`;
+                    const cid = await pinJSONToIPFS(obj, pinataJwt);
+                    const uri = `ipfs://${cid}`;
+                    setEvmMetaUri(uri);
+                    setMdInfo(`Pinned metadata CID: ${cid}`);
+                  }catch(e:any){ alert(String(e)); } finally{ setMdBusy(false);} 
+                }} className="px-3 py-2 bg-indigo-700 text-white rounded">Pin Metadata</button>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">Tip: If you see a 403 error, create a Scoped Key in Pinata with pinFileToIPFS and pinJSONToIPFS permissions, and paste the JWT here. Do not store JWTs in the repo.</p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={async () => { try { const acc = await ensureMetaMaskAmoy(); setMmAccount(acc); } catch(e:any){ alert(String(e)); } }}
+                className="px-3 py-2 bg-purple-700 text-white rounded"
+              >
+                Connect MetaMask (Amoy)
+              </button>
+              {mmAccount && <span className="text-sm text-gray-700">Account: {mmAccount}</span>}
+            </div>
+            <input
+              value={evmMetaUri}
+              onChange={(e)=>setEvmMetaUri(e.target.value)}
+              placeholder="ipfs://... or https://... (tokenURI)"
+              className="w-full p-3 border rounded"
+            />
+            <input
+              value={evmSecretKey}
+              onChange={(e)=>setEvmSecretKey(e.target.value)}
+              placeholder="optional encryption key (blakQubeKey)"
+              className="w-full p-3 border rounded"
+            />
+            <div className="flex gap-2">
+              <button onClick={async()=>{ try { await mintEvmInstance(); } catch(e:any){ alert(String(e)); } }} className="px-3 py-2 bg-indigo-600 text-white rounded">Mint Instance</button>
+              {evmTxHash && <button onClick={()=>window.open(`https://amoy.polygonscan.com/tx/${evmTxHash}`,'_blank')} className="px-3 py-2 bg-gray-800 text-white rounded">Open Tx</button>}
+            </div>
+
+            {/* Retrieve & Decrypt by Token ID */}
+            <div className="mt-4 border rounded p-4 bg-gray-50">
+              <h3 className="font-semibold mb-2">Retrieve & Decrypt by Token ID</h3>
+              {viewError && <div className="mb-2 p-2 rounded border border-red-300 bg-red-50 text-sm text-red-700">{viewError}</div>}
+              <div className="flex gap-2 items-center mb-2">
+                <input value={viewTokenId} onChange={(e)=>setViewTokenId(e.target.value)} placeholder="Token ID (e.g. 199)" className="p-2 border rounded w-48" />
+                <button disabled={viewBusy || !viewTokenId} onClick={retrieveByTokenId} className="px-3 py-2 bg-gray-700 text-white rounded">Retrieve</button>
+                <button disabled={viewBusy || !viewTokenURI || !viewEncKey} onClick={decryptFromMetadata} className="px-3 py-2 bg-emerald-700 text-white rounded">Decrypt</button>
+              </div>
+              {viewOwner && <p className="text-sm">Owner: <span className="font-mono">{viewOwner}</span></p>}
+              {viewTokenURI && (
+                <p className="text-sm">TokenURI: <a className="text-blue-600 underline" target="_blank" href={viewTokenURI.startsWith('ipfs://') ? viewTokenURI.replace('ipfs://','https://ipfs.io/ipfs/') : viewTokenURI}>Open</a></p>
+              )}
+              {viewEncKey && <p className="text-sm">Enc Key: <span className="font-mono break-all">{viewEncKey}</span></p>}
+              {viewDecryptLink && (
+                <p className="text-sm">Decrypted Link: <a className="text-blue-600 underline" target="_blank" href={viewDecryptLink}>Open</a></p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* BTC Testnet - PSBT Flow */}
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <h2 className="text-xl font-semibold mb-4">Bitcoin Testnet - Anchor (PSBT)</h2>
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <button
+                onClick={async()=>{
+                  try {
+                    const addr = await getBitcoinAddress();
+                    alert(`Fund this testnet address via faucet: ${addr.address}`);
+                  } catch(e:any){ alert(String(e)); }
+                }}
+                className="px-3 py-2 bg-stone-700 text-white rounded"
+              >
+                Generate Testnet Address
+              </button>
+              <button
+                onClick={async()=>{
+                  try {
+                    const addr = await getBitcoinAddress();
+                    const utxos = await fetchTestnetUtxos(addr.address);
+                    alert(`Fetched ${utxos.length} UTXOs for ${addr.address}`);
+                  } catch(e:any){ alert(String(e)); }
+                }}
+                className="px-3 py-2 bg-stone-600 text-white rounded"
+              >
+                Fetch UTXOs (Blockstream)
+              </button>
+            </div>
+            <div className="flex flex-col gap-2">
+              <input id="data-root" className="p-3 border rounded" placeholder="dataRoot (any identifier e.g. merkle root)"/>
+              <input id="amount-sats" className="p-3 border rounded" placeholder="amount sats (e.g. 5000)"/>
+              <button
+                onClick={async()=>{
+                  try {
+                    const addr = await getBitcoinAddress();
+                    const utxos = await fetchTestnetUtxos(addr.address);
+                    const dataRoot = (document.getElementById('data-root') as HTMLInputElement)?.value || `root:${Date.now()}`;
+                    const satsStr = (document.getElementById('amount-sats') as HTMLInputElement)?.value || '5000';
+                    const txid = await createSignBroadcastAnchor(dataRoot, utxos, BigInt(satsStr));
+                    setBtcTxId(txid);
+                    window.open(`https://mempool.space/testnet/tx/${txid}`, '_blank');
+                    setTestResults(prev => [...prev, { type: 'btc_anchor', status: 'success', data: { btc_txid: txid, address: addr.address }, timestamp: Date.now() }]);
+                  } catch(e:any){ setTestResults(prev => [...prev, { type: 'btc_anchor', status: 'error', data: String(e), timestamp: Date.now() }]); alert(String(e)); }
+                }}
+                className="px-3 py-2 bg-yellow-700 text-white rounded"
+              >
+                Create → Sign → Broadcast
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Explorers */}
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <h2 className="text-xl font-semibold mb-4">Chain Explorers</h2>
+          <div className="space-y-5">
+            <div>
+              <label className="block text-sm text-gray-700 mb-1">Ethereum Sepolia TX Hash</label>
+              <div className="flex gap-2">
+                <input
+                  value={ethTxHash}
+                  onChange={(e) => setEthTxHash(e.target.value)}
+                  placeholder="0x..."
+                  className="flex-1 p-3 border border-gray-300 rounded-md"
+                />
+                <button
+                  onClick={() => {
+                    const ok = /^0x[0-9a-fA-F]{64}$/.test(ethTxHash);
+                    if (ok) window.open(`https://sepolia.etherscan.io/tx/${ethTxHash}`, '_blank');
+                    else alert('Enter a valid 0x-prefixed 32-byte tx hash for Sepolia');
+                  }}
+                  className="px-3 py-2 bg-gray-700 text-white rounded hover:bg-gray-800"
+                >
+                  Open on Etherscan (Sepolia)
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm text-gray-700 mb-1">Polygon Amoy TX Hash</label>
+              <div className="flex gap-2">
+                <input
+                  value={polygonTxHash}
+                  onChange={(e) => setPolygonTxHash(e.target.value)}
+                  placeholder="0x..."
+                  className="flex-1 p-3 border border-gray-300 rounded-md"
+                />
+                <button
+                  onClick={() => {
+                    const ok = /^0x[0-9a-fA-F]{64}$/.test(polygonTxHash);
+                    if (ok) window.open(`https://amoy.polygonscan.com/tx/${polygonTxHash}`, '_blank');
+                    else alert('Enter a valid 0x-prefixed 32-byte tx hash for Polygon Amoy');
+                  }}
+                  className="px-3 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                >
+                  Open on Polygonscan (Amoy)
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm text-gray-700 mb-1">Bitcoin Testnet TXID</label>
+              <div className="flex gap-2">
+                <input
+                  value={btcTxId}
+                  onChange={(e) => setBtcTxId(e.target.value)}
+                  placeholder="<hex txid>"
+                  className="flex-1 p-3 border border-gray-300 rounded-md"
+                />
+                <button
+                  onClick={() => {
+                    const ok = /^[0-9a-fA-F]{64}$/.test(btcTxId);
+                    if (ok) window.open(`https://mempool.space/testnet/tx/${btcTxId}`, '_blank');
+                    else alert('Enter a valid 64-char hex Bitcoin testnet txid (addresses like tb1... won\'t work)');
+                  }}
+                  className="px-3 py-2 bg-yellow-700 text-white rounded hover:bg-yellow-800"
+                >
+                  Open on Mempool (Bitcoin Testnet)
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">Tip: Paste the txid (not address). We auto-fill this from the last BTC anchor when available.</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Testing Interface */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold mb-4">Test Anchoring</h2>
+            <div className="space-y-4">
+              <textarea
+                value={testData}
+                onChange={(e) => setTestData(e.target.value)}
+                placeholder="Enter test data to anchor..."
+                className="w-full p-3 border border-gray-300 rounded-md"
+                rows={3}
+              />
+              <div className="flex space-x-2">
+                <button
+                  onClick={handleSubmitForAnchoring}
+                  disabled={!testData.trim()}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                >
+                  Submit for Anchoring
+                </button>
+                <button
+                  onClick={handleTestEVMTransaction}
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                >
+                  Test EVM TX Check
+                </button>
+              </div>
+              
+              {/* Supported Chains Display */}
+              <div className="mt-4">
+                <h3 className="text-sm font-medium text-gray-700 mb-2">Supported EVM Chains:</h3>
+                {supportedChains.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    {supportedChains.map((chain) => (
+                      <div key={chain.chain_id} className="text-xs bg-gray-50 p-2 rounded">
+                        <div className="font-medium">{chain.name}</div>
+                        <div className="text-gray-600">ID: {chain.chain_id}</div>
+                        <div className="text-gray-600">{chain.native_token}</div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-xs text-gray-500">Loading chains...</div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* End-to-End Test Suite */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold mb-4">End-to-End Test Suite</h2>
+            <div className="grid grid-cols-1 gap-3">
+              <button
+                onClick={async () => {
+                  setBusy(true);
+                  try {
+                    const res = await mintIQuBeOnICP(`iqb:${Date.now()}`);
+                    setTestResults(prev => [...prev, { type: 'mint_icp', status: 'success', data: res, timestamp: Date.now() }]);
+                  } catch (e: any) {
+                    setTestResults(prev => [...prev, { type: 'mint_icp', status: 'error', data: String(e), timestamp: Date.now() }]);
+                  } finally { setBusy(false); }
+                }}
+                className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 disabled:opacity-50"
+                disabled={busy}
+              >
+                Mint iQube on ICP
+              </button>
+
+              <button
+                onClick={async () => {
+                  setBusy(true);
+                  try {
+                    const addr = await getBitcoinAddress([]);
+                    setTestResults(prev => [...prev, { type: 'btc_address', status: 'success', data: addr, timestamp: Date.now() }]);
+                  } catch (e: any) {
+                    setTestResults(prev => [...prev, { type: 'btc_address', status: 'error', data: String(e), timestamp: Date.now() }]);
+                  } finally { setBusy(false); }
+                }}
+                className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 disabled:opacity-50"
+                disabled={busy}
+              >
+                Get Bitcoin Address (Mint on BTC)
+              </button>
+
+              <button
+                onClick={async () => {
+                  setBusy(true);
+                  try {
+                    // Mint on ICP
+                    const mint = await mintIQuBeOnICP(`iqb:${Date.now()}`);
+                    // Simulate cross-chain lock by submitting message
+                    const ICP = 1, BITCOIN = 2;
+                    const msgId = await submitCrossChainMessage(ICP, BITCOIN, `lock:${mint.receiptId}`);
+                    // Auto-attest twice to reach quorum for testing
+                    await attestDVNMessage(msgId, ['validator1','validator2']);
+                    const status = await getCrossChainMessageStatus(msgId);
+                    // Mark burn state on ICP
+                    const setRes = await setBurnState(mint.receiptId, msgId, status.ready);
+                    let burn = await getBurnState(mint.receiptId);
+                    if (!burn) {
+                      await new Promise(r => setTimeout(r, 200));
+                      burn = await getBurnState(mint.receiptId);
+                    }
+                    // Surface useful identifiers in the result block
+                    const identifiers = {
+                      icp_receipt_id: mint.receiptId,
+                      dvn_message_id: msgId,
+                      burn_state: burn,
+                    };
+                    setTestResults(prev => [...prev, { type: 'dual_lock', status: status.ready ? 'success' : 'pending', data: { ...identifiers, status, setRes }, timestamp: Date.now() }]);
+                  } catch (e: any) {
+                    setTestResults(prev => [...prev, { type: 'dual_lock', status: 'error', data: String(e), timestamp: Date.now() }]);
+                  } finally { setBusy(false); }
+                }}
+                className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50"
+                disabled={busy}
+              >
+                Dual-Lock Flow (ICP -> BTC)
+              </button>
+
+              <button
+                onClick={async () => {
+                  setBusy(true);
+                  try {
+                    const ICP = 1, POLYGON = 137;
+                    const msgId = await submitCrossChainMessage(ICP, POLYGON, `transfer:${Date.now()}`);
+                    await attestDVNMessage(msgId, ['validator1','validator2']);
+                    const status = await getCrossChainMessageStatus(msgId);
+                    setTestResults(prev => [...prev, { type: 'xchain_transfer', status: status.ready ? 'success' : 'pending', data: { msgId, status }, timestamp: Date.now() }]);
+                  } catch (e: any) {
+                    setTestResults(prev => [...prev, { type: 'xchain_transfer', status: 'error', data: String(e), timestamp: Date.now() }]);
+                  } finally { setBusy(false); }
+                }}
+                className="px-4 py-2 bg-teal-600 text-white rounded hover:bg-teal-700 disabled:opacity-50"
+                disabled={busy}
+              >
+                Transfer ICP -> Polygon (simulate)
+              </button>
+
+              <button
+                onClick={async () => {
+                  setBusy(true);
+                  try {
+                    const res = await anchorBatchesNow();
+                    const status = await getAnchorStatus('ops-suite');
+                    // Try to auto-fill BTC txid from latest batch
+                    const latest = Array.isArray(status?.batches) ? status.batches[status.batches.length - 1] : null;
+                    let txid: string | null = null;
+                    if (latest) txid = extractBtcTxId(latest);
+                    if (!txid) txid = extractBtcTxId(res?.anchorTxId) || extractBtcTxId(res);
+                    if (txid) setBtcTxId(txid);
+                    const identifiers = {
+                      btc_txid: txid,
+                      batch_root: latest?.root || null,
+                    };
+                    setTestResults(prev => [...prev, { type: 'anchor_now', status: 'success', data: { ...identifiers, res, status }, timestamp: Date.now() }]);
+                  } catch (e: any) {
+                    setTestResults(prev => [...prev, { type: 'anchor_now', status: 'error', data: String(e), timestamp: Date.now() }]);
+                  } finally { setBusy(false); }
+                }}
+                className="px-4 py-2 bg-amber-600 text-white rounded hover:bg-amber-700 disabled:opacity-50"
+                disabled={busy}
+              >
+                Anchor Batches Now (BTC)
+              </button>
+
+              <button
+                onClick={async () => {
+                  setBusy(true);
+                  try {
+                    const chains = await getSupportedChains();
+                    setSupportedChains(chains);
+                    setTestResults(prev => [...prev, { type: 'supported_chains', status: 'success', data: chains, timestamp: Date.now() }]);
+                  } catch (e: any) {
+                    setTestResults(prev => [...prev, { type: 'supported_chains', status: 'error', data: String(e), timestamp: Date.now() }]);
+                  } finally { setBusy(false); }
+                }}
+                className="px-4 py-2 bg-slate-600 text-white rounded hover:bg-slate-700 disabled:opacity-50"
+                disabled={busy}
+              >
+                List Supported Chains
+              </button>
+            </div>
+          </div>
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold mb-4">Test Results</h2>
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {testResults.length === 0 ? (
+                <p className="text-gray-500">No test results yet</p>
+              ) : (
+                testResults.slice(-10).reverse().map((result, index) => (
+                  <div key={index} className="p-2 border border-gray-200 rounded text-sm">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="font-medium">{result.type}</span>
+                      <span className={
+                        result.status === 'success' ? 'text-green-600' : 'text-red-600'
+                      }>
+                        {result.status}
+                      </span>
+                    </div>
+                    <div className="text-xs text-gray-500 mb-1">
+                      {new Date(result.timestamp).toLocaleTimeString()}
+                    </div>
+                    {result.data && (
+                      <pre className="text-xs bg-gray-50 p-1 rounded overflow-x-auto">
+                        {JSON.stringify(result.data, null, 2)}
+                      </pre>
+                    )}
+                    {result.error && (
+                      <div className="text-xs text-red-600">{result.error}</div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

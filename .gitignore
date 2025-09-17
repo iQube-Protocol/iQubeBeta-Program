@@ -13,3 +13,6 @@ ops/artifacts/
 
 # Mac
 .DS_Store
+
+# DFX local state (ICP)
+.dfx/

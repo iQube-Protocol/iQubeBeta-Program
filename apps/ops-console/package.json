@@ -11,9 +11,13 @@
   },
   "dependencies": {
     "@iqube/sdk-js": "workspace:*",
-    "next": "^14.2.0",
-    "react": "^18.3.0",
-    "react-dom": "^18.3.0"
+    "bitcoinjs-lib": "^6.1.7",
+    "ecpair": "^2.1.0",
+    "ethers": "^6.8.0",
+    "next": "^14.2.32",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tiny-secp256k1": "^2.2.4"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

@@ -1,1 +1,1 @@
-self.__REACT_LOADABLE_MANIFEST="{\"app/page.tsx -> @iqube/sdk-js\":{\"id\":\"app/page.tsx -> @iqube/sdk-js\",\"files\":[]}}"
+self.__REACT_LOADABLE_MANIFEST="{}"
