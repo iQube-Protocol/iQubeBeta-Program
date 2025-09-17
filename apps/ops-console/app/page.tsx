@@ -9,7 +9,12 @@ import {
   getAnchorStatus, 
   getDualLockStatus, 
   submitForAnchoring, 
-  getEVMTransactionStatus 
+  getEVMTransactionStatus,
+  submitCrossChainMessage,
+  getCrossChainMessageStatus,
+  attestDVNMessage,
+  getPendingDVNMessages,
+  getReadyDVNMessages,
 } from '@iqube/sdk-js';
 
 // Initialize ECC library for bitcoinjs
@@ -387,49 +392,59 @@ export default function OpsConsole() {
       }
     ]);
   };
-  const handleGetReceiptStub = () => {
-    setTestResults(prev => [
-      ...prev,
-      {
-        type: 'icp_get_receipt',
-        timestamp: new Date().toISOString(),
-        data: { todo: 'Wire proof_of_state.get_receipt(id) via SDK' },
-        status: 'success'
-      }
-    ]);
+  // ICP DVN live handlers
+  const handleSubmitDVNMessage = async () => {
+    try {
+      const src = Number(window.prompt('Source chain ID (e.g., 1 for ETH mainnet, 137 for Polygon, 11155111 for Sepolia, 80002 for Amoy):', '11155111') || '11155111');
+      const dst = Number(window.prompt('Destination chain ID:', '80002') || '80002');
+      const payload = window.prompt('Payload (stringified):', '{"op":"test"}') || '{"op":"test"}';
+      const messageId = await submitCrossChainMessage(src, dst, payload);
+      setTestResults(prev => [...prev, { type: 'icp_submit_dvn_message', timestamp: new Date().toISOString(), data: { messageId, src, dst, payload }, status: 'success' }]);
+    } catch (e: any) {
+      setTestResults(prev => [...prev, { type: 'icp_submit_dvn_message_error', timestamp: new Date().toISOString(), error: e?.message || 'submit failed', status: 'error' }]);
+    }
   };
-  const handleGetBatchesStub = () => {
-    setTestResults(prev => [
-      ...prev,
-      {
-        type: 'icp_get_batches',
-        timestamp: new Date().toISOString(),
-        data: { todo: 'Wire proof_of_state.get_batches() via SDK' },
-        status: 'success'
-      }
-    ]);
+
+  const handleGetDVNMessageStatus = async () => {
+    try {
+      const messageId = window.prompt('DVN Message ID:');
+      if (!messageId) throw new Error('Message ID required');
+      const status = await getCrossChainMessageStatus(messageId);
+      setTestResults(prev => [...prev, { type: 'icp_get_dvn_message_status', timestamp: new Date().toISOString(), data: { messageId, ...status }, status: 'success' }]);
+    } catch (e: any) {
+      setTestResults(prev => [...prev, { type: 'icp_get_dvn_message_status_error', timestamp: new Date().toISOString(), error: e?.message || 'status fetch failed', status: 'error' }]);
+    }
   };
-  const handleGetDVNMessageStub = () => {
-    setTestResults(prev => [
-      ...prev,
-      {
-        type: 'icp_get_dvn_message',
-        timestamp: new Date().toISOString(),
-        data: { todo: 'Wire cross_chain_service.get_dvn_message(message_id) via SDK' },
-        status: 'success'
-      }
-    ]);
+
+  const handleAttestDVN = async () => {
+    try {
+      const messageId = window.prompt('DVN Message ID to attest:');
+      if (!messageId) throw new Error('Message ID required');
+      const validatorsCsv = window.prompt('Validators (comma-separated) or leave blank for defaults:', '');
+      const validators = validatorsCsv ? validatorsCsv.split(',').map(s => s.trim()).filter(Boolean) : undefined;
+      await attestDVNMessage(messageId, validators);
+      setTestResults(prev => [...prev, { type: 'icp_attest_dvn', timestamp: new Date().toISOString(), data: { messageId, validators }, status: 'success' }]);
+    } catch (e: any) {
+      setTestResults(prev => [...prev, { type: 'icp_attest_dvn_error', timestamp: new Date().toISOString(), error: e?.message || 'attestation failed', status: 'error' }]);
+    }
   };
-  const handleListAttestationsStub = () => {
-    setTestResults(prev => [
-      ...prev,
-      {
-        type: 'icp_list_attestations',
-        timestamp: new Date().toISOString(),
-        data: { todo: 'Wire cross_chain_service.get_message_attestations(message_id) via SDK' },
-        status: 'success'
-      }
-    ]);
+
+  const handleListPendingDVN = async () => {
+    try {
+      const list = await getPendingDVNMessages();
+      setTestResults(prev => [...prev, { type: 'icp_list_pending_dvn', timestamp: new Date().toISOString(), data: { count: list.length, messages: list }, status: 'success' }]);
+    } catch (e: any) {
+      setTestResults(prev => [...prev, { type: 'icp_list_pending_dvn_error', timestamp: new Date().toISOString(), error: e?.message || 'list pending failed', status: 'error' }]);
+    }
+  };
+
+  const handleListReadyDVN = async () => {
+    try {
+      const list = await getReadyDVNMessages();
+      setTestResults(prev => [...prev, { type: 'icp_list_ready_dvn', timestamp: new Date().toISOString(), data: { count: list.length, messages: list }, status: 'success' }]);
+    } catch (e: any) {
+      setTestResults(prev => [...prev, { type: 'icp_list_ready_dvn_error', timestamp: new Date().toISOString(), error: e?.message || 'list ready failed', status: 'error' }]);
+    }
   };
 
   const handleTestEVMTransaction = async () => {
@@ -696,14 +711,15 @@ export default function OpsConsole() {
                 </div>
               </div>
             )}
-            {/* ICP DVN verify actions */}
+            {/* ICP DVN actions (live) */}
             <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-2">
               <button onClick={handleViewICPDVNStatus} className="px-3 py-2 text-sm bg-gray-100 rounded hover:bg-gray-200">View DVN Status</button>
               <button onClick={handleViewAnchorStatus} className="px-3 py-2 text-sm bg-gray-100 rounded hover:bg-gray-200">View Anchor Status</button>
-              <button onClick={handleGetReceiptStub} className="px-3 py-2 text-sm bg-gray-100 rounded hover:bg-gray-200">Get Receipt</button>
-              <button onClick={handleGetBatchesStub} className="px-3 py-2 text-sm bg-gray-100 rounded hover:bg-gray-200">View Batches</button>
-              <button onClick={handleGetDVNMessageStub} className="px-3 py-2 text-sm bg-gray-100 rounded hover:bg-gray-200">Get DVN Message</button>
-              <button onClick={handleListAttestationsStub} className="px-3 py-2 text-sm bg-gray-100 rounded hover:bg-gray-200">List Attestations</button>
+              <button onClick={handleSubmitDVNMessage} className="px-3 py-2 text-sm bg-gray-100 rounded hover:bg-gray-200">Submit DVN Message</button>
+              <button onClick={handleGetDVNMessageStatus} className="px-3 py-2 text-sm bg-gray-100 rounded hover:bg-gray-200">Get DVN Message Status</button>
+              <button onClick={handleAttestDVN} className="px-3 py-2 text-sm bg-gray-100 rounded hover:bg-gray-200">Attest DVN Message</button>
+              <button onClick={handleListPendingDVN} className="px-3 py-2 text-sm bg-gray-100 rounded hover:bg-gray-200">List Pending DVN</button>
+              <button onClick={handleListReadyDVN} className="px-3 py-2 text-sm bg-gray-100 rounded hover:bg-gray-200">List Ready DVN</button>
             </div>
             <div className="mt-3 text-xs text-gray-500">
               Note: ICP interactions are via canisters; no browser wallet is required.
