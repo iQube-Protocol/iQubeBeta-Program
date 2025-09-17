@@ -16,3 +16,8 @@ ops/artifacts/
 
 # DFX local state (ICP)
 .dfx/
+
+# Next.js build output
+.next/
+apps/*/.next/
+packages/*/.next/
