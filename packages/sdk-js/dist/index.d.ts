@@ -1,4 +1,5 @@
 import type { AnchorStatus, DualLockStatus } from './types/iqube';
+export { getSolAddress, getSolBalance, requestAirdrop, transferSol, getSolTx, getLatestBlockhash, sendRawTxBase64, } from './solana';
 export declare function getAnchorStatus(iQubeId: string): Promise<AnchorStatus>;
 export declare function getDualLockStatus(iQubeId: string): Promise<DualLockStatus>;
 export declare function submitForAnchoring(data: string, metadata: string): Promise<{

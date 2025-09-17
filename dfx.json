@@ -25,6 +25,13 @@
       "candid": "canisters/proof_of_state/proof_of_state.did",
       "build": ["cargo", "build", "--target", "wasm32-unknown-unknown", "--release", "-p", "proof_of_state"]
     }
+    ,
+    "solana_signer_ed25519": {
+      "type": "rust",
+      "package": "solana_signer_ed25519",
+      "candid": "canisters/solana_signer_ed25519/solana_signer_ed25519.did",
+      "build": ["cargo", "build", "--target", "wasm32-unknown-unknown", "--release", "-p", "solana_signer_ed25519"]
+    }
   },
   "networks": {
     "local": {

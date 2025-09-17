@@ -1,5 +1,7 @@
 // @iqube/sdk-js - SDK for interacting with iQube services
 import { HttpAgent, Actor } from '@dfinity/agent';
+// -------- Solana exports --------
+export { getSolAddress, getSolBalance, requestAirdrop, transferSol, getSolTx, getLatestBlockhash, sendRawTxBase64, } from './solana';
 const CANISTER_CONFIG = {
     proof_of_state: {
         canisterId: 'umunu-kh777-77774-qaaca-cai',

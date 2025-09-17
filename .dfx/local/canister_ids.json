@@ -13,5 +13,8 @@
   },
   "proof_of_state": {
     "local": "umunu-kh777-77774-qaaca-cai"
+  },
+  "solana_signer_ed25519": {
+    "local": "ucwa4-rx777-77774-qaada-cai"
   }
 }

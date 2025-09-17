@@ -1,7 +1,0 @@
-{
-  "/api/btc/fee/route": "app/api/btc/fee/route.js",
-  "/api/btc/txhex/route": "app/api/btc/txhex/route.js",
-  "/page": "app/page.js",
-  "/api/btc/broadcast/route": "app/api/btc/broadcast/route.js",
-  "/api/btc/utxos/route": "app/api/btc/utxos/route.js"
-}

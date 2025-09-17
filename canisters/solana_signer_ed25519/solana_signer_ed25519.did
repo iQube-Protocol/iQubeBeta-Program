@@ -1,0 +1,11 @@
+service : {
+  get_solana_address: () -> (text) query;
+  get_balance: (text) -> (nat64);
+  request_airdrop: (text, nat64) -> (text);
+  build_and_send_transfer: (text, nat64) -> (text);
+  get_transaction: (text) -> (opt record { slot: nat64; signature: text });
+  set_rpc_url: (text) -> ();
+  get_rpc_url: () -> (text) query;
+  get_latest_blockhash: () -> (text);
+  send_raw_transaction: (text) -> (text);
+}

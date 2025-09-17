@@ -3,7 +3,7 @@ const nextConfig = {
   experimental: {
     appDir: true,
   },
-  transpilePackages: ['@iqube/sdk-js'],
+  transpilePackages: ['@iqube/sdk-js', '@solana/web3.js'],
   webpack: (config) => {
     // Enable WebAssembly for tiny-secp256k1
     config.experiments = config.experiments || {};
