@@ -28,3 +28,137 @@
   --ifm-color-primary-lightest: #4fddbf;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
 }
+
+/* Mermaid diagram styling to match GitHub repo */
+.docusaurus-mermaid-container {
+  position: relative;
+  overflow: visible;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  background: #ffffff;
+  padding: 16px;
+  margin: 16px 0;
+}
+
+[data-theme='dark'] .docusaurus-mermaid-container {
+  border-color: #30363d;
+  background: #0d1117;
+}
+
+/* Mermaid zoom and pan controls */
+.docusaurus-mermaid-container::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%23656d76'%3E%3Cpath d='M11.5 7a4.499 4.499 0 11-8.998 0A4.499 4.499 0 0111.5 7zm-.82 4.74a6 6 0 111.06-1.06l3.04 3.04a.75.75 0 11-1.06 1.06l-3.04-3.04z'%3E%3C/path%3E%3C/svg%3E") no-repeat center;
+  background-size: 16px;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.docusaurus-mermaid-container:hover::after {
+  opacity: 1;
+}
+
+/* Enable zoom and pan on Mermaid SVGs */
+.docusaurus-mermaid-container svg {
+  max-width: 100%;
+  height: auto;
+  cursor: grab;
+  transition: transform 0.2s ease;
+}
+
+.docusaurus-mermaid-container svg:active {
+  cursor: grabbing;
+}
+
+/* Mermaid diagram color scheme matching GitHub */
+.docusaurus-mermaid-container .flowchart .node rect,
+.docusaurus-mermaid-container .flowchart .node circle,
+.docusaurus-mermaid-container .flowchart .node polygon {
+  fill: #fff2cc;
+  stroke: #d6b656;
+  stroke-width: 2px;
+}
+
+.docusaurus-mermaid-container .flowchart .node .label {
+  color: #000000;
+  font-family: 'trebuchet ms', verdana, arial, sans-serif;
+}
+
+.docusaurus-mermaid-container .flowchart .edgePath .path {
+  stroke: #666666;
+  stroke-width: 2px;
+}
+
+.docusaurus-mermaid-container .flowchart .cluster rect {
+  fill: #efefef;
+  stroke: #666666;
+  stroke-width: 1px;
+}
+
+[data-theme='dark'] .docusaurus-mermaid-container .flowchart .node rect,
+[data-theme='dark'] .docusaurus-mermaid-container .flowchart .node circle,
+[data-theme='dark'] .docusaurus-mermaid-container .flowchart .node polygon {
+  fill: #21262d;
+  stroke: #30363d;
+}
+
+[data-theme='dark'] .docusaurus-mermaid-container .flowchart .node .label {
+  color: #c9d1d9;
+}
+
+[data-theme='dark'] .docusaurus-mermaid-container .flowchart .edgePath .path {
+  stroke: #8b949e;
+}
+
+[data-theme='dark'] .docusaurus-mermaid-container .flowchart .cluster rect {
+  fill: #161b22;
+  stroke: #30363d;
+}
+
+/* Zoom controls styling */
+.mermaid-zoom-controls {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  z-index: 10;
+}
+
+.mermaid-zoom-controls button {
+  width: 24px;
+  height: 24px;
+  border: 1px solid #d0d7de;
+  background: white;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  font-weight: bold;
+}
+
+.mermaid-zoom-controls button:hover {
+  background: #f6f8fa;
+  border-color: #1f2328;
+}
+
+[data-theme='dark'] .mermaid-zoom-controls button {
+  background: #21262d;
+  border-color: #30363d;
+  color: #c9d1d9;
+}
+
+[data-theme='dark'] .mermaid-zoom-controls button:hover {
+  background: #30363d;
+  border-color: #8b949e;
+}

@@ -14,6 +14,7 @@ const sidebars: SidebarsConfig = {
       label: '🚀 Getting Started',
       items: [
         'getting-started/quick-start',
+        'getting-started/why-iqubes-matter',
       ],
     },
     {
@@ -38,6 +39,8 @@ const sidebars: SidebarsConfig = {
       label: '🏗️ Technical Architecture',
       items: [
         'architecture/overview',
+        'architecture/system-overview',
+        'architecture/technical-diagrams',
       ],
     },
     {

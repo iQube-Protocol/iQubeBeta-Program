@@ -1,20 +1,42 @@
-# Website
+# iQube Protocol Operations Manual
 
-This website is built using [Docusaurus](https://docusaurus.io/), a modern static website generator.
+This website is built using [Docusaurus](https://docusaurus.io/), a modern static website generator with Mermaid diagram support.
 
 ## Installation
 
 ```bash
-yarn
+npm install
 ```
 
 ## Local Development
 
 ```bash
-yarn start
+npm start
 ```
 
-This command starts a local development server and opens up a browser window. Most changes are reflected live without having to restart the server.
+This command:
+1. Automatically kills any existing processes on port 3001
+2. Starts the Docusaurus development server on port 3001
+3. Opens up a browser window at http://localhost:3001
+4. Enables live reload for most changes without restarting the server
+
+### Alternative Start Commands
+
+```bash
+# Start without killing existing processes (will prompt if port is busy)
+npm run start-safe
+
+# Manually kill processes on port 3001
+npm run kill-port
+```
+
+### Port Configuration
+- **Operations Manual**: http://localhost:3001 (this documentation site)
+- **Aigent Z Application**: http://localhost:3000 (main application)
+- **Ops Console**: http://localhost:3007 (standalone ops console)
+
+### Mermaid Diagrams
+This documentation includes interactive Mermaid diagrams that render automatically. All technical architecture diagrams are fully interactive and support both light and dark themes.
 
 ## Build
 

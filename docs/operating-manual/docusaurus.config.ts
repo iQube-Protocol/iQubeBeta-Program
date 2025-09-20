@@ -69,6 +69,12 @@ const config: Config = {
     ],
   ],
 
+  themes: ['@docusaurus/theme-mermaid'],
+  
+  markdown: {
+    mermaid: true,
+  },
+
   themeConfig: {
     // Replace with your project's social card
     image: 'img/docusaurus-social-card.jpg',
@@ -140,6 +146,34 @@ const config: Config = {
     prism: {
       theme: prismThemes.github,
       darkTheme: prismThemes.dracula,
+    },
+    mermaid: {
+      theme: {light: 'base', dark: 'dark'},
+      options: {
+        maxTextSize: 50000,
+        fontFamily: 'trebuchet ms, verdana, arial, sans-serif',
+        fontSize: 16,
+        primaryColor: '#fff2cc',
+        primaryTextColor: '#000000',
+        primaryBorderColor: '#d6b656',
+        lineColor: '#666666',
+        secondaryColor: '#efefef',
+        tertiaryColor: '#fff',
+        background: '#ffffff',
+        mainBkg: '#fff2cc',
+        secondBkg: '#efefef',
+        tertiaryBkg: '#fff',
+        darkMode: false,
+        theme: 'base',
+        themeVariables: {
+          primaryColor: '#fff2cc',
+          primaryTextColor: '#000000',
+          primaryBorderColor: '#d6b656',
+          lineColor: '#666666',
+          secondaryColor: '#efefef',
+          tertiaryColor: '#fff'
+        }
+      }
     },
   } satisfies Preset.ThemeConfig,
 };

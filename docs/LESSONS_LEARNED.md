@@ -32,6 +32,13 @@
 - **Best Practice**: Use dependency management tools that can detect and resolve version conflicts
 - **Future Application**: Design dependency management strategies that work across monorepo boundaries
 
+### Cross-Workstream Integration Strategy
+**Key Insight**: Integrating Web3 development workstream with application UI enables comprehensive testing and production readiness
+- **Learning**: Separate development tracks create silos that prevent effective end-to-end testing
+- **Solution**: Embed operational monitoring directly into user-facing application as Settings → Network Ops submenu
+- **Best Practice**: Design integration points that bridge backend Web3 functionality with frontend UX/UI
+- **Future Application**: Plan for cross-workstream integration from project inception to enable parallel development and testing
+
 ---
 
 ## 🎓 Technical Learnings
@@ -208,11 +215,13 @@
 
 ### For AigentZBeta Integration (Updated)
 1. **Apply Monorepo Learnings**: Use systematic synchronization patterns established in this project
-2. **Reuse Architecture Patterns**: Apply the same multi-tier fallback strategy
-3. **Standardize Monitoring**: Use the same health monitoring approach
-4. **Certificate Handling**: Implement the same certificate verification bypass
-5. **Error Handling**: Apply the same type-safe error handling patterns
-6. **Documentation Strategy**: Implement comprehensive documentation from the start
+2. **Cross-Workstream Integration**: Embed Web3 operational monitoring directly into application UI
+3. **Reuse Architecture Patterns**: Apply the same multi-tier fallback strategy
+4. **Standardize Monitoring**: Use the same health monitoring approach integrated into Settings menu
+5. **Certificate Handling**: Implement the same certificate verification bypass
+6. **Error Handling**: Apply the same type-safe error handling patterns
+7. **Documentation Strategy**: Implement comprehensive documentation from the start
+8. **Testing Infrastructure**: Design for parallel UX/UI and Web3 functionality testing from inception
 
 ### For Production Deployment
 1. **Environment Configuration**: Separate development and production security settings
