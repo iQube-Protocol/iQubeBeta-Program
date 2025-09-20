@@ -9,7 +9,7 @@ let solActor: any = null;
 const solanaIDL = ({ IDL }: any) => {
   const TxStatus = IDL.Record({ slot: IDL.Nat64, signature: IDL.Text });
   return IDL.Service({
-    get_solana_address: IDL.Func([], [IDL.Text], ['query']),
+    get_solana_address: IDL.Func([], [IDL.Text], []),
     get_balance: IDL.Func([IDL.Text], [IDL.Nat64], []),
     request_airdrop: IDL.Func([IDL.Text, IDL.Nat64], [IDL.Text], []),
     build_and_send_transfer: IDL.Func([IDL.Text, IDL.Nat64], [IDL.Text], []),
@@ -38,7 +38,7 @@ async function getSolActor() {
 
 export async function getSolAddress(): Promise<string> {
   const a = await getSolActor();
-  return a.get_solana_address();
+  return await a.get_solana_address();
 }
 
 export async function getSolBalance(address: string): Promise<bigint> {

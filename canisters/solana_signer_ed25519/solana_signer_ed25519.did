@@ -1,5 +1,5 @@
 service : {
-  get_solana_address: () -> (text) query;
+  get_solana_address: () -> (text);
   get_balance: (text) -> (nat64);
   request_airdrop: (text, nat64) -> (text);
   build_and_send_transfer: (text, nat64) -> (text);

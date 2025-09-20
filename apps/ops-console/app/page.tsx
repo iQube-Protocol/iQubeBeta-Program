@@ -16,8 +16,12 @@ import {
   getPendingDVNMessages,
   getReadyDVNMessages,
   // Solana helpers
+  getSolAddress, 
+  requestAirdrop, 
+  getSolBalance, 
+  getSolTx, 
   sendRawTxBase64,
-  requestAirdrop as solRequestAirdrop,
+  transferSol
 } from '@iqube/sdk-js';
 import { PublicKey, SystemProgram, Transaction, Connection, clusterApiUrl } from '@solana/web3.js';
 
@@ -54,11 +58,13 @@ export default function OpsConsole() {
   const [btcLatestTx, setBtcLatestTx] = useState<string | null>(null);
   const [btcBusy, setBtcBusy] = useState<boolean>(false);
   // Solana Devnet temp widget state
-  const [solAddress, setSolAddress] = useState<string>('');
-  const [solRecipient, setSolRecipient] = useState<string>('');
-  const [solAmount, setSolAmount] = useState<string>('0.01');
-  const [solLatestSig, setSolLatestSig] = useState<string>('');
-  const [solBusy, setSolBusy] = useState<boolean>(false);
+  const [solAddress, setSolAddress] = useState('');
+  const [solCanisterAddress, setSolCanisterAddress] = useState('');
+  const [solRecipient, setSolRecipient] = useState('');
+  const [solAmount, setSolAmount] = useState('');
+  const [solBusy, setSolBusy] = useState(false);
+  const [solLastSig, setSolLastSig] = useState('');
+  const [solSigningMode, setSolSigningMode] = useState<'phantom' | 'canister'>('phantom');
 
   // JSON stringify that supports BigInt by converting to string
   const safeStringify = (obj: any) => {
@@ -70,6 +76,19 @@ export default function OpsConsole() {
   };
 
   // ===== Solana Devnet temporary test widget actions =====
+  const handleSolGetCanisterAddress = async () => {
+    try {
+      setSolBusy(true);
+      const address = await getSolAddress();
+      setSolCanisterAddress(address);
+      setTestResults(prev => [...prev, { type: 'sol_canister_address', timestamp: new Date().toISOString(), data: { address }, status: 'success' }]);
+    } catch (e: any) {
+      setTestResults(prev => [...prev, { type: 'sol_canister_address_error', timestamp: new Date().toISOString(), error: e?.message || 'canister address failed', status: 'error' }]);
+    } finally {
+      setSolBusy(false);
+    }
+  };
+
   const handleSolGetAddressFromPhantom = async () => {
     try {
       const w = window as any;
@@ -105,11 +124,22 @@ export default function OpsConsole() {
 
   const handleSolAirdrop = async () => {
     try {
-      if (!solAddress) throw new Error('Connect Phantom first');
       setSolBusy(true);
-      const sig = await solRequestAirdrop(solAddress, BigInt(1_000_000_000)); // 1 SOL
-      setSolLatestSig(sig);
-      setTestResults(prev => [...prev, { type: 'sol_airdrop', timestamp: new Date().toISOString(), data: { signature: sig }, status: 'success' }]);
+      const address = solSigningMode === 'phantom' ? solAddress : solCanisterAddress;
+      if (!address) throw new Error(`${solSigningMode === 'phantom' ? 'Connect Phantom' : 'Get canister address'} first`);
+      const signature = await requestAirdrop(address, BigInt(1_000_000_000));
+      setSolLastSig(signature);
+      setTestResults(prev => [...prev, { type: 'sol_airdrop', timestamp: new Date().toISOString(), data: { signature, address, lamports: '1000000000', mode: solSigningMode }, status: 'success' }]);
+      
+      // Test if address is valid first
+      try {
+        const pubkey = new PublicKey(address);
+        console.log('Address validation passed for:', address);
+        console.log('PublicKey object:', pubkey.toBase58());
+      } catch (e) {
+        console.error('Invalid Solana address:', address, e);
+        setTestResults(prev => [...prev, { type: 'address_validation_error', timestamp: new Date().toISOString(), error: `Invalid address format: ${e}`, status: 'error' }]);
+      }
     } catch (e: any) {
       setTestResults(prev => [...prev, { type: 'sol_airdrop_error', timestamp: new Date().toISOString(), error: e?.message || 'airdrop failed', status: 'error' }]);
     } finally {
@@ -119,12 +149,14 @@ export default function OpsConsole() {
 
   const handleSolGetBalance = async () => {
     try {
-      if (!solAddress) throw new Error('Connect Phantom first');
+      const address = solSigningMode === 'phantom' ? solAddress : solCanisterAddress;
+      if (!address) throw new Error(`${solSigningMode === 'phantom' ? 'Connect Phantom' : 'Get canister address'} first`);
       setSolBusy(true);
-      // Fetch balance directly from devnet RPC to avoid canister query restrictions
+      // Use web3.js directly for balance to avoid canister query restrictions
       const conn = new Connection(clusterApiUrl('devnet'), 'confirmed');
-      const lamports = await conn.getBalance(new PublicKey(solAddress));
-      setTestResults(prev => [...prev, { type: 'sol_balance', timestamp: new Date().toISOString(), data: { address: solAddress, lamports: lamports?.toString?.() ?? lamports }, status: 'success' }]);
+      const pubkey = new PublicKey(address);
+      const lamports = await conn.getBalance(pubkey);
+      setTestResults(prev => [...prev, { type: 'sol_balance', timestamp: new Date().toISOString(), data: { address, lamports: lamports?.toString?.() ?? lamports, mode: solSigningMode }, status: 'success' }]);
     } catch (e: any) {
       setTestResults(prev => [...prev, { type: 'sol_balance_error', timestamp: new Date().toISOString(), error: e?.message || 'balance failed', status: 'error' }]);
     } finally {
@@ -134,35 +166,54 @@ export default function OpsConsole() {
 
   const handleSolSend = async () => {
     try {
-      const provider = (window as any).solana;
-      if (!provider?.isPhantom) throw new Error('Phantom wallet not detected');
-      if (!solAddress) throw new Error('Connect Phantom first');
       const to = solRecipient.trim();
       if (!to) throw new Error('Enter recipient');
       const amountSol = parseFloat(solAmount || '0');
       if (!(amountSol > 0)) throw new Error('Enter valid amount');
       setSolBusy(true);
 
-      // Build transaction (fetch latest blockhash directly from devnet RPC)
-      const conn = new Connection(clusterApiUrl('devnet'), 'confirmed');
-      const { blockhash: recentBlockhash } = await conn.getLatestBlockhash('confirmed');
-      if (!recentBlockhash) throw new Error('Failed to fetch latest blockhash');
-      const fromPubkey = new PublicKey(solAddress);
-      const toPubkey = new PublicKey(to);
-      const lamports = Math.floor(amountSol * 1_000_000_000);
-      const tx = new Transaction({ recentBlockhash, feePayer: fromPubkey }).add(
-        SystemProgram.transfer({ fromPubkey, toPubkey, lamports })
-      );
+      let signature: string;
 
-      // Sign with Phantom (does not submit)
-      const signed = await provider.signTransaction(tx);
-      const raw = signed.serialize({ requireAllSignatures: false });
-      const base64 = typeof Buffer !== 'undefined' ? Buffer.from(raw).toString('base64') : btoa(String.fromCharCode(...raw));
+      if (solSigningMode === 'phantom') {
+        // Phantom signing mode
+        const provider = (window as any).solana;
+        if (!provider?.isPhantom) throw new Error('Phantom wallet not detected');
+        if (!solAddress) throw new Error('Connect Phantom first');
 
-      // Submit via canister RPC
-      const sig = await sendRawTxBase64(base64);
-      setSolLatestSig(sig);
-      setTestResults(prev => [...prev, { type: 'sol_send', timestamp: new Date().toISOString(), data: { signature: sig, to, lamports }, status: 'success' }]);
+        // Build transaction (fetch latest blockhash directly from devnet RPC)
+        const conn = new Connection(clusterApiUrl('devnet'), 'confirmed');
+        const { blockhash: recentBlockhash } = await conn.getLatestBlockhash('confirmed');
+        if (!recentBlockhash) throw new Error('Failed to fetch latest blockhash');
+        const fromPubkey = new PublicKey(solAddress);
+        const toPubkey = new PublicKey(to);
+        const lamports = Math.floor(amountSol * 1_000_000_000);
+        const tx = new Transaction({ recentBlockhash, feePayer: fromPubkey }).add(
+          SystemProgram.transfer({ fromPubkey, toPubkey, lamports })
+        );
+
+        // Sign with Phantom (does not submit)
+        const signed = await provider.signTransaction(tx);
+        const serialized = signed.serialize();
+        const base64Tx = Buffer.from(serialized).toString('base64');
+
+        // Submit via canister
+        signature = await sendRawTxBase64(base64Tx);
+      } else {
+        // Canister signing mode
+        if (!solCanisterAddress) throw new Error('Get canister address first');
+        const lamports = Math.floor(amountSol * 1_000_000_000);
+        
+        // Use canister's build_and_send_transfer
+        signature = await transferSol(to, BigInt(lamports));
+      }
+
+      setSolLastSig(signature);
+      setTestResults(prev => [...prev, { 
+        type: 'sol_send', 
+        timestamp: new Date().toISOString(), 
+        data: { signature, to, lamports: Math.floor(amountSol * 1_000_000_000), mode: solSigningMode }, 
+        status: 'success' 
+      }]);
     } catch (e: any) {
       setTestResults(prev => [...prev, { type: 'sol_send_error', timestamp: new Date().toISOString(), error: e?.message || 'send failed', status: 'error' }]);
     } finally {
@@ -1171,27 +1222,90 @@ export default function OpsConsole() {
 
         {/* Testing Interface */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Solana Devnet Temporary Test Widget */}
+          {/* Solana Devnet Card */}
           <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-semibold mb-4">Solana (Devnet) - Temporary Test</h2>
-            <div className="space-y-3">
-              <div className="flex gap-2 items-center">
-                <button onClick={handleSolGetAddressFromPhantom} className="px-3 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm">Connect Phantom</button>
-                <span className="text-xs text-gray-600 break-all">{solAddress || 'Not connected'}</span>
+            <h2 className="text-xl font-semibold mb-4">Solana Devnet</h2>
+            
+            {/* Signing Mode Toggle */}
+            <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+              <div className="flex items-center gap-4 mb-2">
+                <span className="text-sm font-medium">Signing Mode:</span>
+                <label className="flex items-center">
+                  <input 
+                    type="radio" 
+                    name="solSigningMode" 
+                    value="phantom" 
+                    checked={solSigningMode === 'phantom'} 
+                    onChange={e => setSolSigningMode(e.target.value as 'phantom' | 'canister')}
+                    className="mr-1"
+                  />
+                  <span className="text-sm">Phantom Wallet</span>
+                </label>
+                <label className="flex items-center">
+                  <input 
+                    type="radio" 
+                    name="solSigningMode" 
+                    value="canister" 
+                    checked={solSigningMode === 'canister'} 
+                    onChange={e => setSolSigningMode(e.target.value as 'phantom' | 'canister')}
+                    className="mr-1"
+                  />
+                  <span className="text-sm">Canister Threshold</span>
+                </label>
               </div>
+              <div className="text-xs text-gray-600">
+                {solSigningMode === 'phantom' ? 'Uses Phantom wallet to sign, canister to submit' : 'Uses canister threshold Ed25519 signing (fully trustless)'}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {/* Address Section */}
+              {solSigningMode === 'phantom' ? (
+                <div className="flex gap-2 items-center">
+                  <button onClick={handleSolGetAddressFromPhantom} className="px-3 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm">Connect Phantom</button>
+                  <span className="text-xs text-gray-600 break-all">{solAddress || 'Not connected'}</span>
+                </div>
+              ) : (
+                <div className="flex gap-2 items-center">
+                  <button onClick={handleSolGetCanisterAddress} disabled={solBusy} className="px-3 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm disabled:opacity-60">Get Canister Address</button>
+                  <span className="text-xs text-gray-600 break-all">{solCanisterAddress || 'Not loaded'}</span>
+                </div>
+              )}
+
+              {/* Actions */}
               <div className="flex gap-2 items-center">
-                <button onClick={handleSolAirdrop} disabled={!solAddress || solBusy} className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm disabled:opacity-60">Airdrop 1 SOL</button>
-                <button onClick={handleSolGetBalance} disabled={!solAddress || solBusy} className="px-3 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 text-sm disabled:opacity-60">Get Balance</button>
-                {solLatestSig && (
-                  <a className="text-sm underline" target="_blank" rel="noopener noreferrer" href={`https://explorer.solana.com/tx/${solLatestSig}?cluster=devnet`}>View TX</a>
+                <button 
+                  onClick={handleSolAirdrop} 
+                  disabled={(solSigningMode === 'phantom' ? !solAddress : !solCanisterAddress) || solBusy} 
+                  className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm disabled:opacity-60"
+                >
+                  Airdrop 1 SOL
+                </button>
+                <button 
+                  onClick={handleSolGetBalance} 
+                  disabled={(solSigningMode === 'phantom' ? !solAddress : !solCanisterAddress) || solBusy} 
+                  className="px-3 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 text-sm disabled:opacity-60"
+                >
+                  Get Balance
+                </button>
+                {solLastSig && (
+                  <a className="text-sm underline" target="_blank" rel="noopener noreferrer" href={`https://explorer.solana.com/tx/${solLastSig}?cluster=devnet`}>View TX</a>
                 )}
               </div>
+
+              {/* Send Transaction */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-2 items-center">
                 <input value={solRecipient} onChange={e=>setSolRecipient(e.target.value)} placeholder="Recipient (base58)" className="p-2 border rounded text-sm col-span-2" />
                 <input value={solAmount} onChange={e=>setSolAmount(e.target.value)} placeholder="Amount SOL" className="p-2 border rounded text-sm" />
               </div>
               <div>
-                <button onClick={handleSolSend} disabled={!solAddress || solBusy} className="px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm disabled:opacity-60">Send SOL (Phantom sign, canister submit)</button>
+                <button 
+                  onClick={handleSolSend} 
+                  disabled={(solSigningMode === 'phantom' ? !solAddress : !solCanisterAddress) || solBusy} 
+                  className="px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm disabled:opacity-60"
+                >
+                  Send SOL ({solSigningMode === 'phantom' ? 'Phantom sign' : 'Canister sign'})
+                </button>
               </div>
             </div>
           </div>
