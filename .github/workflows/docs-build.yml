@@ -32,4 +32,4 @@ jobs:
 
       - name: Build site (catch MDX/Mermaid errors)
         working-directory: docs/operating-manual
-        run: npm run build
+        run: npx --yes @docusaurus/core@3.8.1 docusaurus build
