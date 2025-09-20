@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-user-operations/network-ops" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.8.1">
+<title data-rh="true">Network Operations (Network Ops) | iQube Protocol Operations Manual</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://iqube-protocol.github.io/iQubeBeta-Program/img/docusaurus-social-card.jpg"><meta data-rh="true" name="twitter:image" content="https://iqube-protocol.github.io/iQubeBeta-Program/img/docusaurus-social-card.jpg"><meta data-rh="true" property="og:url" content="https://iqube-protocol.github.io/iQubeBeta-Program/docs/user-operations/network-ops"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Network Operations (Network Ops) | iQube Protocol Operations Manual"><meta data-rh="true" name="description" content="Monitor and manage blockchain networks and ICP canisters through the Network Ops interface"><meta data-rh="true" property="og:description" content="Monitor and manage blockchain networks and ICP canisters through the Network Ops interface"><link data-rh="true" rel="icon" href="/iQubeBeta-Program/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://iqube-protocol.github.io/iQubeBeta-Program/docs/user-operations/network-ops"><link data-rh="true" rel="alternate" href="https://iqube-protocol.github.io/iQubeBeta-Program/docs/user-operations/network-ops" hreflang="en"><link data-rh="true" rel="alternate" href="https://iqube-protocol.github.io/iQubeBeta-Program/docs/user-operations/network-ops" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Network Operations (Network Ops)","item":"https://iqube-protocol.github.io/iQubeBeta-Program/docs/user-operations/network-ops"}]}</script><link rel="alternate" type="application/rss+xml" href="/iQubeBeta-Program/blog/rss.xml" title="iQube Protocol Operations Manual RSS Feed">
+<link rel="alternate" type="application/atom+xml" href="/iQubeBeta-Program/blog/atom.xml" title="iQube Protocol Operations Manual Atom Feed"><link rel="stylesheet" href="/iQubeBeta-Program/assets/css/styles.d68e2a60.css">
+<script src="/iQubeBeta-Program/assets/js/runtime~main.c4dd652e.js" defer="defer"></script>
+<script src="/iQubeBeta-Program/assets/js/main.fac3d833.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>!function(){var t="light";var e=function(){try{return new URLSearchParams(window.location.search).get("docusaurus-theme")}catch(t){}}()||function(){try{return window.localStorage.getItem("theme")}catch(t){}}();document.documentElement.setAttribute("data-theme",e||t),document.documentElement.setAttribute("data-theme-choice",e||t)}(),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><link rel="preload" as="image" href="/iQubeBeta-Program/img/logo.svg"><div role="region" aria-label="Skip to main content"><a class="skipToContent_ILil" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/iQubeBeta-Program/"><div class="navbar__logo"><img src="/iQubeBeta-Program/img/logo.svg" alt="iQube Protocol Logo" class="themedComponent_mdsI themedComponent--light_MDtW"><img src="/iQubeBeta-Program/img/logo.svg" alt="iQube Protocol Logo" class="themedComponent_mdsI themedComponent--dark_EqFv"></div><b class="navbar__title text--truncate">iQube Protocol</b></a><a aria-current="page" class="navbar__item navbar__link navbar__link--active" href="/iQubeBeta-Program/docs/intro">Operations Manual</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="https://github.com/iQube-Protocol/iQubeBeta-Program" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">GitHub<svg width="13.5" height="13.5" aria-hidden="true" class="iconExternalLink_nIf2"><use href="#theme-svg-external-link"></use></svg></a><div class="toggle_WpoV colorModeToggle_Bg6z"><button class="clean-btn toggleButton_W_tu toggleButtonDisabled_t5Gg" type="button" disabled="" title="system mode" aria-label="Switch between dark and light mode (currently system mode)"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_YMAN lightToggleIcon_YRcq"><path fill="currentColor" d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_YMAN darkToggleIcon_Nzyx"><path fill="currentColor" d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_YMAN systemToggleIcon_KNIm"><path fill="currentColor" d="m12 21c4.971 0 9-4.029 9-9s-4.029-9-9-9-9 4.029-9 9 4.029 9 9 9zm4.95-13.95c1.313 1.313 2.05 3.093 2.05 4.95s-0.738 3.637-2.05 4.95c-1.313 1.313-3.093 2.05-4.95 2.05v-14c1.857 0 3.637 0.737 4.95 2.05z"></path></svg></button></div><div class="navbarSearchContainer_Ouod"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_K0kh"><div class="docsWrapper_UvvF"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_LotE" type="button"></button><div class="docRoot_tcBc"><aside class="theme-doc-sidebar-container docSidebarContainer_oBOl"><div class="sidebarViewport_jKYX"><div class="sidebar_E44W"><nav aria-label="Docs sidebar" class="menu thin-scrollbar menu_o4rf"><ul class="theme-doc-sidebar-menu menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/iQubeBeta-Program/docs/intro">iQube Protocol Operations Manual</a></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/iQubeBeta-Program/docs/getting-started/quick-start">🚀 Getting Started</a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret menu__link--active" role="button" aria-expanded="true" href="/iQubeBeta-Program/docs/user-operations/aigent-z-interface">📋 User Operations</a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/iQubeBeta-Program/docs/user-operations/aigent-z-interface">Aigent Z Interface</a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/iQubeBeta-Program/docs/user-operations/iqube-operations">iQube Operations</a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/iQubeBeta-Program/docs/user-operations/registry-management">Registry Management</a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link menu__link--active" aria-current="page" tabindex="0" href="/iQubeBeta-Program/docs/user-operations/network-ops">Network Operations (Network Ops)</a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/iQubeBeta-Program/docs/system-operations/monitoring">🔧 System Operations</a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/iQubeBeta-Program/docs/architecture/overview">🏗️ Technical Architecture</a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/iQubeBeta-Program/docs/integration/icp-canisters">🔗 Integration Guide</a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/iQubeBeta-Program/docs/development/build-manual">🛠️ Development</a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/iQubeBeta-Program/docs/reference/glossary">📚 Reference</a></div></li></ul></nav></div></div></aside><main class="docMainContainer_JK7S"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_OPha"><div class="docItemContainer_jKeB"><article><nav class="theme-doc-breadcrumbs breadcrumbsContainer_sUQJ" aria-label="Breadcrumbs"><ul class="breadcrumbs"><li class="breadcrumbs__item"><a aria-label="Home page" class="breadcrumbs__link" href="/iQubeBeta-Program/"><svg viewBox="0 0 24 24" class="breadcrumbHomeIcon_tLvV"><path d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z" fill="currentColor"></path></svg></a></li><li class="breadcrumbs__item"><span class="breadcrumbs__link">📋 User Operations</span></li><li class="breadcrumbs__item breadcrumbs__item--active"><span class="breadcrumbs__link">Network Operations (Network Ops)</span></li></ul></nav><div class="tocCollapsible_uFVe theme-doc-toc-mobile tocMobile_jdt1"><button type="button" class="clean-btn tocCollapsibleButton_IkgS">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>Network Operations (Network Ops)</h1></header>
+<p>The Network Operations interface, accessible through the <strong>Settings → Network Ops</strong> menu in Aigent Z, provides real-time monitoring and management of blockchain networks and ICP canisters. This interface has migrated from the standalone iQube Operations console and is now integrated directly into the Aigent Z application.</p>
+<h2 class="anchor anchorWithStickyNavbar_uqyz" id="overview">Overview<a href="#overview" class="hash-link" aria-label="Direct link to Overview" title="Direct link to Overview">​</a></h2>
+<p>Network Ops serves as the central command center for:</p>
+<ul>
+<li><strong>Live blockchain monitoring</strong> across multiple testnets</li>
+<li><strong>ICP canister health</strong> and status tracking</li>
+<li><strong>Cross-chain operations</strong> and DVN message processing</li>
+<li><strong>System diagnostics</strong> and troubleshooting tools</li>
+<li><strong>Testing infrastructure</strong> for validation workflows</li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_uqyz" id="accessing-network-ops">Accessing Network Ops<a href="#accessing-network-ops" class="hash-link" aria-label="Direct link to Accessing Network Ops" title="Direct link to Accessing Network Ops">​</a></h2>
+<ol>
+<li>Open the Aigent Z application</li>
+<li>Navigate to <strong>Settings</strong> in the sidebar</li>
+<li>Click <strong>Network Ops</strong> in the Settings submenu</li>
+<li>The Network Ops dashboard will load with real-time data</li>
+</ol>
+<div class="theme-admonition theme-admonition-info admonition_g6sI alert alert--info"><div class="admonitionHeading_mplE"><span class="admonitionIcon_jkQc"><svg viewBox="0 0 14 16"><path fill-rule="evenodd" d="M7 2.3c3.14 0 5.7 2.56 5.7 5.7s-2.56 5.7-5.7 5.7A5.71 5.71 0 0 1 1.3 8c0-3.14 2.56-5.7 5.7-5.7zM7 1C3.14 1 0 4.14 0 8s3.14 7 7 7 7-3.14 7-7-3.14-7-7-7zm1 3H6v5h2V4zm0 6H6v2h2v-2z"></path></svg></span>Migration Note</div><div class="admonitionContent_iUeO"><p>Network Ops was previously available as a standalone &quot;iQube Operations console&quot; but has been migrated into the Aigent Z application for better integration and user experience.</p></div></div>
+<h2 class="anchor anchorWithStickyNavbar_uqyz" id="dashboard-components">Dashboard Components<a href="#dashboard-components" class="hash-link" aria-label="Direct link to Dashboard Components" title="Direct link to Dashboard Components">​</a></h2>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="status-cards-overview">Status Cards Overview<a href="#status-cards-overview" class="hash-link" aria-label="Direct link to Status Cards Overview" title="Direct link to Status Cards Overview">​</a></h3>
+<p>The Network Ops dashboard displays real-time status cards for all integrated services:</p>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="btc-anchor">BTC Anchor<a href="#btc-anchor" class="hash-link" aria-label="Direct link to BTC Anchor" title="Direct link to BTC Anchor">​</a></h4>
+<ul>
+<li><strong>Purpose</strong>: Bitcoin testnet anchor transaction monitoring</li>
+<li><strong>Status Indicators</strong>: Green (Active) / Red (Inactive)</li>
+<li><strong>Data</strong>: Latest anchor transactions, confirmation status</li>
+<li><strong>Response Time</strong>: API call latency tracking</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="icp-canister-health">ICP Canister Health<a href="#icp-canister-health" class="hash-link" aria-label="Direct link to ICP Canister Health" title="Direct link to ICP Canister Health">​</a></h4>
+<ul>
+<li><strong>Purpose</strong>: Monitor deployed ICP canisters</li>
+<li><strong>Canisters Tracked</strong>: proof_of_state, btc_signer_psbt, cross_chain_service, evm_rpc</li>
+<li><strong>Status Indicators</strong>: Operational health and response times</li>
+<li><strong>Data</strong>: Canister cycles, memory usage, method call success rates</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="cross-chain-dvn">Cross-Chain DVN<a href="#cross-chain-dvn" class="hash-link" aria-label="Direct link to Cross-Chain DVN" title="Direct link to Cross-Chain DVN">​</a></h4>
+<ul>
+<li><strong>Purpose</strong>: LayerZero DVN message processing status</li>
+<li><strong>Integration</strong>: Direct connection to cross_chain_service canister</li>
+<li><strong>Data</strong>: Message queue status, attestation processing, verification results</li>
+<li><strong>Monitoring</strong>: EVM transaction monitoring and ICP receipt generation</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="ethereum-sepolia">Ethereum Sepolia<a href="#ethereum-sepolia" class="hash-link" aria-label="Direct link to Ethereum Sepolia" title="Direct link to Ethereum Sepolia">​</a></h4>
+<ul>
+<li><strong>Purpose</strong>: Live Ethereum testnet monitoring</li>
+<li><strong>RPC Provider</strong>: Infura endpoint integration</li>
+<li><strong>Data</strong>: Latest block number, transaction status, chain health</li>
+<li><strong>Refresh Rate</strong>: 30-second automatic updates</li>
+<li><strong>Explorer Links</strong>: Direct links to Etherscan for transaction details</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="polygon-amoy">Polygon Amoy<a href="#polygon-amoy" class="hash-link" aria-label="Direct link to Polygon Amoy" title="Direct link to Polygon Amoy">​</a></h4>
+<ul>
+<li><strong>Purpose</strong>: Live Polygon testnet monitoring</li>
+<li><strong>RPC Provider</strong>: Official Polygon RPC endpoints</li>
+<li><strong>Data</strong>: Latest block number, transaction status, chain health</li>
+<li><strong>Refresh Rate</strong>: 30-second automatic updates</li>
+<li><strong>Explorer Links</strong>: Direct links to PolygonScan for transaction details</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="solana-integration">Solana Integration<a href="#solana-integration" class="hash-link" aria-label="Direct link to Solana Integration" title="Direct link to Solana Integration">​</a></h4>
+<ul>
+<li><strong>Purpose</strong>: Solana network integration status</li>
+<li><strong>Features</strong>: Address generation, airdrop testing, balance monitoring</li>
+<li><strong>Status</strong>: Development and testing phase</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="status-indicators">Status Indicators<a href="#status-indicators" class="hash-link" aria-label="Direct link to Status Indicators" title="Direct link to Status Indicators">​</a></h3>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="green-badge-active">Green Badge (Active)<a href="#green-badge-active" class="hash-link" aria-label="Direct link to Green Badge (Active)" title="Direct link to Green Badge (Active)">​</a></h4>
+<ul>
+<li>Service is operational and responding normally</li>
+<li>All API calls successful within acceptable timeframes</li>
+<li>Data is current and accurate</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="red-badge-inactive">Red Badge (Inactive)<a href="#red-badge-inactive" class="hash-link" aria-label="Direct link to Red Badge (Inactive)" title="Direct link to Red Badge (Inactive)">​</a></h4>
+<ul>
+<li>Service is experiencing issues or unreachable</li>
+<li>API calls failing or timing out</li>
+<li>Data may be stale or unavailable</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="response-time-display">Response Time Display<a href="#response-time-display" class="hash-link" aria-label="Direct link to Response Time Display" title="Direct link to Response Time Display">​</a></h4>
+<ul>
+<li>Shows API call latency in milliseconds</li>
+<li>Helps identify performance issues</li>
+<li>Updated with each data refresh</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="last-updated-timestamp">Last Updated Timestamp<a href="#last-updated-timestamp" class="hash-link" aria-label="Direct link to Last Updated Timestamp" title="Direct link to Last Updated Timestamp">​</a></h4>
+<ul>
+<li>Shows when data was last successfully retrieved</li>
+<li>Indicates data freshness</li>
+<li>Helps identify stale data issues</li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_uqyz" id="system-diagnostics">System Diagnostics<a href="#system-diagnostics" class="hash-link" aria-label="Direct link to System Diagnostics" title="Direct link to System Diagnostics">​</a></h2>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="manual-refresh">Manual Refresh<a href="#manual-refresh" class="hash-link" aria-label="Direct link to Manual Refresh" title="Direct link to Manual Refresh">​</a></h3>
+<ul>
+<li><strong>Purpose</strong>: Force immediate data refresh for all monitoring cards</li>
+<li><strong>Usage</strong>: Click &quot;Manual Refresh&quot; button to update all status cards</li>
+<li><strong>Benefit</strong>: Bypass automatic refresh intervals for immediate updates</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="testing-dashboard-access">Testing Dashboard Access<a href="#testing-dashboard-access" class="hash-link" aria-label="Direct link to Testing Dashboard Access" title="Direct link to Testing Dashboard Access">​</a></h3>
+<ul>
+<li><strong>Purpose</strong>: Quick access to comprehensive testing interface</li>
+<li><strong>Location</strong>: Available via &quot;Testing Dashboard&quot; button</li>
+<li><strong>Features</strong>: System health tests, application feature validation</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="network-validation">Network Validation<a href="#network-validation" class="hash-link" aria-label="Direct link to Network Validation" title="Direct link to Network Validation">​</a></h3>
+<ul>
+<li><strong>Purpose</strong>: Verify connectivity to all external services</li>
+<li><strong>Process</strong>: Automated connectivity checks to RPC endpoints and canisters</li>
+<li><strong>Results</strong>: Detailed success/failure reporting with error details</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="error-reporting">Error Reporting<a href="#error-reporting" class="hash-link" aria-label="Direct link to Error Reporting" title="Direct link to Error Reporting">​</a></h3>
+<ul>
+<li><strong>Purpose</strong>: Detailed error messages and troubleshooting information</li>
+<li><strong>Display</strong>: Error details shown in status cards when issues occur</li>
+<li><strong>Information</strong>: Specific error codes, messages, and suggested resolutions</li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_uqyz" id="live-data-integration">Live Data Integration<a href="#live-data-integration" class="hash-link" aria-label="Direct link to Live Data Integration" title="Direct link to Live Data Integration">​</a></h2>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="no-mock-data-policy">No Mock Data Policy<a href="#no-mock-data-policy" class="hash-link" aria-label="Direct link to No Mock Data Policy" title="Direct link to No Mock Data Policy">​</a></h3>
+<div class="theme-admonition theme-admonition-warning admonition_g6sI alert alert--warning"><div class="admonitionHeading_mplE"><span class="admonitionIcon_jkQc"><svg viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8.893 1.5c-.183-.31-.52-.5-.887-.5s-.703.19-.886.5L.138 13.499a.98.98 0 0 0 0 1.001c.193.31.53.501.886.501h13.964c.367 0 .704-.19.877-.5a1.03 1.03 0 0 0 .01-1.002L8.893 1.5zm.133 11.497H6.987v-2.003h2.039v2.003zm0-3.004H6.987V5.987h2.039v4.006z"></path></svg></span>Important</div><div class="admonitionContent_iUeO"><p>Network Ops uses <strong>only live testnet data</strong> from real blockchain networks and deployed ICP canisters. No mock or demonstration data is used in the monitoring systems.</p></div></div>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="data-sources">Data Sources<a href="#data-sources" class="hash-link" aria-label="Direct link to Data Sources" title="Direct link to Data Sources">​</a></h3>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="ethereum-sepolia-1">Ethereum Sepolia<a href="#ethereum-sepolia-1" class="hash-link" aria-label="Direct link to Ethereum Sepolia" title="Direct link to Ethereum Sepolia">​</a></h4>
+<ul>
+<li><strong>RPC Endpoint</strong>: Infura API with authenticated access</li>
+<li><strong>Data Retrieved</strong>: Latest block numbers, transaction hashes, chain status</li>
+<li><strong>Update Frequency</strong>: 30-second intervals</li>
+<li><strong>Fallback</strong>: Error handling with &quot;—&quot; display for failed calls</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="polygon-amoy-1">Polygon Amoy<a href="#polygon-amoy-1" class="hash-link" aria-label="Direct link to Polygon Amoy" title="Direct link to Polygon Amoy">​</a></h4>
+<ul>
+<li><strong>RPC Endpoint</strong>: Official Polygon testnet RPC</li>
+<li><strong>Data Retrieved</strong>: Latest block numbers, transaction hashes, chain status</li>
+<li><strong>Update Frequency</strong>: 30-second intervals</li>
+<li><strong>Fallback</strong>: Error handling with &quot;—&quot; display for failed calls</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="icp-dvn-canister">ICP DVN Canister<a href="#icp-dvn-canister" class="hash-link" aria-label="Direct link to ICP DVN Canister" title="Direct link to ICP DVN Canister">​</a></h4>
+<ul>
+<li><strong>Canister ID</strong>: u6s2n-gx777-77774-qaaba-cai (cross_chain_service)</li>
+<li><strong>Data Retrieved</strong>: EVM TX status, ICP receipts, lock status, unlock height</li>
+<li><strong>Update Frequency</strong>: 30-second intervals</li>
+<li><strong>Integration</strong>: Direct canister method calls via HTTP API</li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_uqyz" id="operational-procedures">Operational Procedures<a href="#operational-procedures" class="hash-link" aria-label="Direct link to Operational Procedures" title="Direct link to Operational Procedures">​</a></h2>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="daily-health-check">Daily Health Check<a href="#daily-health-check" class="hash-link" aria-label="Direct link to Daily Health Check" title="Direct link to Daily Health Check">​</a></h3>
+<ol>
+<li>Access Network Ops dashboard</li>
+<li>Verify all status cards show green (active) indicators</li>
+<li>Check response times are within acceptable ranges (&lt; 2 seconds)</li>
+<li>Use &quot;Manual Refresh&quot; if any cards show stale data</li>
+<li>Navigate to Testing Dashboard for comprehensive validation</li>
+</ol>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="troubleshooting-network-issues">Troubleshooting Network Issues<a href="#troubleshooting-network-issues" class="hash-link" aria-label="Direct link to Troubleshooting Network Issues" title="Direct link to Troubleshooting Network Issues">​</a></h3>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="red-status-indicators">Red Status Indicators<a href="#red-status-indicators" class="hash-link" aria-label="Direct link to Red Status Indicators" title="Direct link to Red Status Indicators">​</a></h4>
+<ol>
+<li>Check network connectivity to external RPC endpoints</li>
+<li>Verify API keys and environment variables are configured</li>
+<li>Review browser console for detailed error messages</li>
+<li>Use Testing Dashboard to isolate specific service failures</li>
+</ol>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="slow-response-times">Slow Response Times<a href="#slow-response-times" class="hash-link" aria-label="Direct link to Slow Response Times" title="Direct link to Slow Response Times">​</a></h4>
+<ol>
+<li>Monitor external RPC endpoint performance</li>
+<li>Check for rate limiting or API quota issues</li>
+<li>Verify canister health and IC network status</li>
+<li>Consider switching to backup RPC endpoints if available</li>
+</ol>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="data-inconsistencies">Data Inconsistencies<a href="#data-inconsistencies" class="hash-link" aria-label="Direct link to Data Inconsistencies" title="Direct link to Data Inconsistencies">​</a></h4>
+<ol>
+<li>Force manual refresh to clear cached data</li>
+<li>Verify external blockchain explorer data matches displayed values</li>
+<li>Check for API response format changes from external providers</li>
+<li>Cross-reference data with multiple sources</li>
+</ol>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="emergency-response">Emergency Response<a href="#emergency-response" class="hash-link" aria-label="Direct link to Emergency Response" title="Direct link to Emergency Response">​</a></h3>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="complete-system-failure">Complete System Failure<a href="#complete-system-failure" class="hash-link" aria-label="Direct link to Complete System Failure" title="Direct link to Complete System Failure">​</a></h4>
+<ol>
+<li>Check application server status and logs</li>
+<li>Verify all environment variables are properly configured</li>
+<li>Restart development server if necessary</li>
+<li>Escalate to development team if issues persist</li>
+</ol>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="partial-service-failures">Partial Service Failures<a href="#partial-service-failures" class="hash-link" aria-label="Direct link to Partial Service Failures" title="Direct link to Partial Service Failures">​</a></h4>
+<ol>
+<li>Use Testing Dashboard to identify specific failing services</li>
+<li>Check individual API route responses in browser developer tools</li>
+<li>Verify external service availability and status pages</li>
+<li>Implement fallback procedures for critical operations</li>
+</ol>
+<h2 class="anchor anchorWithStickyNavbar_uqyz" id="integration-with-testing-dashboard">Integration with Testing Dashboard<a href="#integration-with-testing-dashboard" class="hash-link" aria-label="Direct link to Integration with Testing Dashboard" title="Direct link to Integration with Testing Dashboard">​</a></h2>
+<p>Network Ops provides seamless integration with the comprehensive Testing Dashboard:</p>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="access-methods">Access Methods<a href="#access-methods" class="hash-link" aria-label="Direct link to Access Methods" title="Direct link to Access Methods">​</a></h3>
+<ul>
+<li>Click &quot;Testing Dashboard&quot; button in Network Ops</li>
+<li>Direct navigation to <code>/test</code> route</li>
+<li>Quick access for immediate system validation</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="testing-capabilities">Testing Capabilities<a href="#testing-capabilities" class="hash-link" aria-label="Direct link to Testing Capabilities" title="Direct link to Testing Capabilities">​</a></h3>
+<ul>
+<li><strong>System Health Tests</strong>: Validate all integrated services</li>
+<li><strong>Application Feature Tests</strong>: End-to-end workflow validation</li>
+<li><strong>Custom Testing</strong>: Input specific iQube IDs for targeted testing</li>
+<li><strong>Real-time Results</strong>: Live status updates with detailed reporting</li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_uqyz" id="best-practices">Best Practices<a href="#best-practices" class="hash-link" aria-label="Direct link to Best Practices" title="Direct link to Best Practices">​</a></h2>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="regular-monitoring">Regular Monitoring<a href="#regular-monitoring" class="hash-link" aria-label="Direct link to Regular Monitoring" title="Direct link to Regular Monitoring">​</a></h3>
+<ul>
+<li>Perform daily health checks using the dashboard</li>
+<li>Monitor response time trends to identify performance degradation</li>
+<li>Review error logs regularly for early issue detection</li>
+<li>Subscribe to status pages for external services (Infura, Polygon, IC)</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="maintenance-procedures">Maintenance Procedures<a href="#maintenance-procedures" class="hash-link" aria-label="Direct link to Maintenance Procedures" title="Direct link to Maintenance Procedures">​</a></h3>
+<ul>
+<li>Regularly update and rotate external service API keys</li>
+<li>Monitor ICP canister deployments and version updates</li>
+<li>Stay informed of testnet RPC endpoint modifications</li>
+<li>Ensure development, staging, and production environments are synchronized</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="documentation">Documentation<a href="#documentation" class="hash-link" aria-label="Direct link to Documentation" title="Direct link to Documentation">​</a></h3>
+<ul>
+<li>Keep operational procedures updated as systems evolve</li>
+<li>Document any custom configurations or workarounds</li>
+<li>Maintain contact information for external service providers</li>
+<li>Record resolution procedures for common issues</li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_uqyz" id="future-enhancements">Future Enhancements<a href="#future-enhancements" class="hash-link" aria-label="Direct link to Future Enhancements" title="Direct link to Future Enhancements">​</a></h2>
+<p>The Network Ops interface continues to evolve with planned enhancements:</p>
+<ul>
+<li><strong>Additional Blockchain Networks</strong>: Integration with more testnets and mainnets</li>
+<li><strong>Advanced Analytics</strong>: Historical performance tracking and trend analysis</li>
+<li><strong>Automated Alerting</strong>: Proactive notifications for system issues</li>
+<li><strong>Custom Dashboards</strong>: User-configurable monitoring views</li>
+<li><strong>API Management</strong>: Enhanced API key rotation and management tools</li>
+</ul>
+<hr>
+<p><em>Network Ops provides the operational foundation for reliable iQube Protocol operations across all integrated blockchain networks and services.</em></p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col"><a href="https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/docs/user-operations/network-ops.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_fio8" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_U9li"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/iQubeBeta-Program/docs/user-operations/registry-management"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">Registry Management</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/iQubeBeta-Program/docs/system-operations/monitoring"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">System Monitoring</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_blQZ thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#overview" class="table-of-contents__link toc-highlight">Overview</a></li><li><a href="#accessing-network-ops" class="table-of-contents__link toc-highlight">Accessing Network Ops</a></li><li><a href="#dashboard-components" class="table-of-contents__link toc-highlight">Dashboard Components</a><ul><li><a href="#status-cards-overview" class="table-of-contents__link toc-highlight">Status Cards Overview</a></li><li><a href="#status-indicators" class="table-of-contents__link toc-highlight">Status Indicators</a></li></ul></li><li><a href="#system-diagnostics" class="table-of-contents__link toc-highlight">System Diagnostics</a><ul><li><a href="#manual-refresh" class="table-of-contents__link toc-highlight">Manual Refresh</a></li><li><a href="#testing-dashboard-access" class="table-of-contents__link toc-highlight">Testing Dashboard Access</a></li><li><a href="#network-validation" class="table-of-contents__link toc-highlight">Network Validation</a></li><li><a href="#error-reporting" class="table-of-contents__link toc-highlight">Error Reporting</a></li></ul></li><li><a href="#live-data-integration" class="table-of-contents__link toc-highlight">Live Data Integration</a><ul><li><a href="#no-mock-data-policy" class="table-of-contents__link toc-highlight">No Mock Data Policy</a></li><li><a href="#data-sources" class="table-of-contents__link toc-highlight">Data Sources</a></li></ul></li><li><a href="#operational-procedures" class="table-of-contents__link toc-highlight">Operational Procedures</a><ul><li><a href="#daily-health-check" class="table-of-contents__link toc-highlight">Daily Health Check</a></li><li><a href="#troubleshooting-network-issues" class="table-of-contents__link toc-highlight">Troubleshooting Network Issues</a></li><li><a href="#emergency-response" class="table-of-contents__link toc-highlight">Emergency Response</a></li></ul></li><li><a href="#integration-with-testing-dashboard" class="table-of-contents__link toc-highlight">Integration with Testing Dashboard</a><ul><li><a href="#access-methods" class="table-of-contents__link toc-highlight">Access Methods</a></li><li><a href="#testing-capabilities" class="table-of-contents__link toc-highlight">Testing Capabilities</a></li></ul></li><li><a href="#best-practices" class="table-of-contents__link toc-highlight">Best Practices</a><ul><li><a href="#regular-monitoring" class="table-of-contents__link toc-highlight">Regular Monitoring</a></li><li><a href="#maintenance-procedures" class="table-of-contents__link toc-highlight">Maintenance Procedures</a></li><li><a href="#documentation" class="table-of-contents__link toc-highlight">Documentation</a></li></ul></li><li><a href="#future-enhancements" class="table-of-contents__link toc-highlight">Future Enhancements</a></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/iQubeBeta-Program/docs/intro">Tutorial</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Community</div><ul class="footer__items clean-list"><li class="footer__item"><a href="https://stackoverflow.com/questions/tagged/docusaurus" target="_blank" rel="noopener noreferrer" class="footer__link-item">Stack Overflow<svg width="13.5" height="13.5" aria-hidden="true" class="iconExternalLink_nIf2"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a href="https://discordapp.com/invite/docusaurus" target="_blank" rel="noopener noreferrer" class="footer__link-item">Discord<svg width="13.5" height="13.5" aria-hidden="true" class="iconExternalLink_nIf2"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a href="https://x.com/docusaurus" target="_blank" rel="noopener noreferrer" class="footer__link-item">X<svg width="13.5" height="13.5" aria-hidden="true" class="iconExternalLink_nIf2"><use href="#theme-svg-external-link"></use></svg></a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">More</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/iQubeBeta-Program/blog">Blog</a></li><li class="footer__item"><a href="https://github.com/facebook/docusaurus" target="_blank" rel="noopener noreferrer" class="footer__link-item">GitHub<svg width="13.5" height="13.5" aria-hidden="true" class="iconExternalLink_nIf2"><use href="#theme-svg-external-link"></use></svg></a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2025 My Project, Inc. Built with Docusaurus.</div></div></div></footer></div>
+</body>
+</html>

@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-user-operations/registry-management" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.8.1">
+<title data-rh="true">Registry Management | iQube Protocol Operations Manual</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://iqube-protocol.github.io/iQubeBeta-Program/img/docusaurus-social-card.jpg"><meta data-rh="true" name="twitter:image" content="https://iqube-protocol.github.io/iQubeBeta-Program/img/docusaurus-social-card.jpg"><meta data-rh="true" property="og:url" content="https://iqube-protocol.github.io/iQubeBeta-Program/docs/user-operations/registry-management"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Registry Management | iQube Protocol Operations Manual"><meta data-rh="true" name="description" content="Complete guide to managing iQubes through the Registry interface"><meta data-rh="true" property="og:description" content="Complete guide to managing iQubes through the Registry interface"><link data-rh="true" rel="icon" href="/iQubeBeta-Program/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://iqube-protocol.github.io/iQubeBeta-Program/docs/user-operations/registry-management"><link data-rh="true" rel="alternate" href="https://iqube-protocol.github.io/iQubeBeta-Program/docs/user-operations/registry-management" hreflang="en"><link data-rh="true" rel="alternate" href="https://iqube-protocol.github.io/iQubeBeta-Program/docs/user-operations/registry-management" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Registry Management","item":"https://iqube-protocol.github.io/iQubeBeta-Program/docs/user-operations/registry-management"}]}</script><link rel="alternate" type="application/rss+xml" href="/iQubeBeta-Program/blog/rss.xml" title="iQube Protocol Operations Manual RSS Feed">
+<link rel="alternate" type="application/atom+xml" href="/iQubeBeta-Program/blog/atom.xml" title="iQube Protocol Operations Manual Atom Feed"><link rel="stylesheet" href="/iQubeBeta-Program/assets/css/styles.d68e2a60.css">
+<script src="/iQubeBeta-Program/assets/js/runtime~main.c4dd652e.js" defer="defer"></script>
+<script src="/iQubeBeta-Program/assets/js/main.fac3d833.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>!function(){var t="light";var e=function(){try{return new URLSearchParams(window.location.search).get("docusaurus-theme")}catch(t){}}()||function(){try{return window.localStorage.getItem("theme")}catch(t){}}();document.documentElement.setAttribute("data-theme",e||t),document.documentElement.setAttribute("data-theme-choice",e||t)}(),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><link rel="preload" as="image" href="/iQubeBeta-Program/img/logo.svg"><div role="region" aria-label="Skip to main content"><a class="skipToContent_ILil" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/iQubeBeta-Program/"><div class="navbar__logo"><img src="/iQubeBeta-Program/img/logo.svg" alt="iQube Protocol Logo" class="themedComponent_mdsI themedComponent--light_MDtW"><img src="/iQubeBeta-Program/img/logo.svg" alt="iQube Protocol Logo" class="themedComponent_mdsI themedComponent--dark_EqFv"></div><b class="navbar__title text--truncate">iQube Protocol</b></a><a aria-current="page" class="navbar__item navbar__link navbar__link--active" href="/iQubeBeta-Program/docs/intro">Operations Manual</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="https://github.com/iQube-Protocol/iQubeBeta-Program" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">GitHub<svg width="13.5" height="13.5" aria-hidden="true" class="iconExternalLink_nIf2"><use href="#theme-svg-external-link"></use></svg></a><div class="toggle_WpoV colorModeToggle_Bg6z"><button class="clean-btn toggleButton_W_tu toggleButtonDisabled_t5Gg" type="button" disabled="" title="system mode" aria-label="Switch between dark and light mode (currently system mode)"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_YMAN lightToggleIcon_YRcq"><path fill="currentColor" d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_YMAN darkToggleIcon_Nzyx"><path fill="currentColor" d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_YMAN systemToggleIcon_KNIm"><path fill="currentColor" d="m12 21c4.971 0 9-4.029 9-9s-4.029-9-9-9-9 4.029-9 9 4.029 9 9 9zm4.95-13.95c1.313 1.313 2.05 3.093 2.05 4.95s-0.738 3.637-2.05 4.95c-1.313 1.313-3.093 2.05-4.95 2.05v-14c1.857 0 3.637 0.737 4.95 2.05z"></path></svg></button></div><div class="navbarSearchContainer_Ouod"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_K0kh"><div class="docsWrapper_UvvF"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_LotE" type="button"></button><div class="docRoot_tcBc"><aside class="theme-doc-sidebar-container docSidebarContainer_oBOl"><div class="sidebarViewport_jKYX"><div class="sidebar_E44W"><nav aria-label="Docs sidebar" class="menu thin-scrollbar menu_o4rf"><ul class="theme-doc-sidebar-menu menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-1 menu__list-item"><a class="menu__link" href="/iQubeBeta-Program/docs/intro">iQube Protocol Operations Manual</a></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/iQubeBeta-Program/docs/getting-started/quick-start">🚀 Getting Started</a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret menu__link--active" role="button" aria-expanded="true" href="/iQubeBeta-Program/docs/user-operations/aigent-z-interface">📋 User Operations</a></div><ul class="menu__list"><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/iQubeBeta-Program/docs/user-operations/aigent-z-interface">Aigent Z Interface</a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/iQubeBeta-Program/docs/user-operations/iqube-operations">iQube Operations</a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link menu__link--active" aria-current="page" tabindex="0" href="/iQubeBeta-Program/docs/user-operations/registry-management">Registry Management</a></li><li class="theme-doc-sidebar-item-link theme-doc-sidebar-item-link-level-2 menu__list-item"><a class="menu__link" tabindex="0" href="/iQubeBeta-Program/docs/user-operations/network-ops">Network Operations (Network Ops)</a></li></ul></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/iQubeBeta-Program/docs/system-operations/monitoring">🔧 System Operations</a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/iQubeBeta-Program/docs/architecture/overview">🏗️ Technical Architecture</a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/iQubeBeta-Program/docs/integration/icp-canisters">🔗 Integration Guide</a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/iQubeBeta-Program/docs/development/build-manual">🛠️ Development</a></div></li><li class="theme-doc-sidebar-item-category theme-doc-sidebar-item-category-level-1 menu__list-item menu__list-item--collapsed"><div class="menu__list-item-collapsible"><a class="menu__link menu__link--sublist menu__link--sublist-caret" role="button" aria-expanded="false" href="/iQubeBeta-Program/docs/reference/glossary">📚 Reference</a></div></li></ul></nav></div></div></aside><main class="docMainContainer_JK7S"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_OPha"><div class="docItemContainer_jKeB"><article><nav class="theme-doc-breadcrumbs breadcrumbsContainer_sUQJ" aria-label="Breadcrumbs"><ul class="breadcrumbs"><li class="breadcrumbs__item"><a aria-label="Home page" class="breadcrumbs__link" href="/iQubeBeta-Program/"><svg viewBox="0 0 24 24" class="breadcrumbHomeIcon_tLvV"><path d="M10 19v-5h4v5c0 .55.45 1 1 1h3c.55 0 1-.45 1-1v-7h1.7c.46 0 .68-.57.33-.87L12.67 3.6c-.38-.34-.96-.34-1.34 0l-8.36 7.53c-.34.3-.13.87.33.87H5v7c0 .55.45 1 1 1h3c.55 0 1-.45 1-1z" fill="currentColor"></path></svg></a></li><li class="breadcrumbs__item"><span class="breadcrumbs__link">📋 User Operations</span></li><li class="breadcrumbs__item breadcrumbs__item--active"><span class="breadcrumbs__link">Registry Management</span></li></ul></nav><div class="tocCollapsible_uFVe theme-doc-toc-mobile tocMobile_jdt1"><button type="button" class="clean-btn tocCollapsibleButton_IkgS">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>Registry Management</h1></header>
+<p>The Registry serves as the central marketplace and management system for iQube templates and instances. It provides comprehensive tools for discovering, creating, managing, and sharing iQubes across the protocol ecosystem.</p>
+<h2 class="anchor anchorWithStickyNavbar_uqyz" id="registry-overview">Registry Overview<a href="#registry-overview" class="hash-link" aria-label="Direct link to Registry Overview" title="Direct link to Registry Overview">​</a></h2>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="purpose-and-function">Purpose and Function<a href="#purpose-and-function" class="hash-link" aria-label="Direct link to Purpose and Function" title="Direct link to Purpose and Function">​</a></h3>
+<p>The Registry acts as:</p>
+<ul>
+<li><strong>Marketplace</strong>: Discover and access iQube templates created by others</li>
+<li><strong>Library</strong>: Manage your personal collection of iQubes</li>
+<li><strong>Publishing Platform</strong>: Share your iQube templates with the community</li>
+<li><strong>Version Control</strong>: Track template evolution and instance relationships</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="visibility-levels">Visibility Levels<a href="#visibility-levels" class="hash-link" aria-label="Direct link to Visibility Levels" title="Direct link to Visibility Levels">​</a></h3>
+<p>The Registry supports multiple visibility levels:</p>
+<ul>
+<li><strong>Library (Private)</strong>: Local browser storage, visible only to you</li>
+<li><strong>Registry (Private)</strong>: Server-side storage, visible only to owner</li>
+<li><strong>Registry (Public)</strong>: Publicly visible and discoverable by all users</li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_uqyz" id="interface-overview">Interface Overview<a href="#interface-overview" class="hash-link" aria-label="Direct link to Interface Overview" title="Direct link to Interface Overview">​</a></h2>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="view-modes">View Modes<a href="#view-modes" class="hash-link" aria-label="Direct link to View Modes" title="Direct link to View Modes">​</a></h3>
+<p>The Registry interface supports three distinct view modes:</p>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="grid-view">Grid View<a href="#grid-view" class="hash-link" aria-label="Direct link to Grid View" title="Direct link to Grid View">​</a></h4>
+<ul>
+<li><strong>Layout</strong>: Card-based layout with visual thumbnails</li>
+<li><strong>Information</strong>: Key metadata, scores, and badges</li>
+<li><strong>Best For</strong>: Browsing and visual discovery</li>
+<li><strong>Features</strong>: Hover effects, quick actions, visual score indicators</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="list-view">List View<a href="#list-view" class="hash-link" aria-label="Direct link to List View" title="Direct link to List View">​</a></h4>
+<ul>
+<li><strong>Layout</strong>: Compact list format with essential information</li>
+<li><strong>Information</strong>: Name, type, creator, and key metrics</li>
+<li><strong>Best For</strong>: Scanning large numbers of iQubes</li>
+<li><strong>Features</strong>: Sortable columns, quick filtering</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="table-view">Table View<a href="#table-view" class="hash-link" aria-label="Direct link to Table View" title="Direct link to Table View">​</a></h4>
+<ul>
+<li><strong>Layout</strong>: Comprehensive tabular display</li>
+<li><strong>Information</strong>: All metadata fields and detailed scores</li>
+<li><strong>Best For</strong>: Detailed analysis and comparison</li>
+<li><strong>Features</strong>: All score columns, business model details, action buttons</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="navigation-controls">Navigation Controls<a href="#navigation-controls" class="hash-link" aria-label="Direct link to Navigation Controls" title="Direct link to Navigation Controls">​</a></h3>
+<ul>
+<li><strong>View Toggle</strong>: Switch between Grid, List, and Table views</li>
+<li><strong>Filter Controls</strong>: Filter by type, business model, and other criteria</li>
+<li><strong>Search</strong>: Text-based search across iQube names and descriptions</li>
+<li><strong>Sort Options</strong>: Sort by name, date, scores, or other attributes</li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_uqyz" id="discovering-iqubes">Discovering iQubes<a href="#discovering-iqubes" class="hash-link" aria-label="Direct link to Discovering iQubes" title="Direct link to Discovering iQubes">​</a></h2>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="browsing-templates">Browsing Templates<a href="#browsing-templates" class="hash-link" aria-label="Direct link to Browsing Templates" title="Direct link to Browsing Templates">​</a></h3>
+<ol>
+<li><strong>Access Registry</strong>: Click &quot;Registry&quot; in the main sidebar</li>
+<li><strong>Choose View Mode</strong>: Select Grid, List, or Table view based on preference</li>
+<li><strong>Apply Filters</strong>: Use filter controls to narrow down results</li>
+<li><strong>Browse Results</strong>: Scroll through available templates</li>
+</ol>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="search-functionality">Search Functionality<a href="#search-functionality" class="hash-link" aria-label="Direct link to Search Functionality" title="Direct link to Search Functionality">​</a></h3>
+<ul>
+<li><strong>Text Search</strong>: Enter keywords in the search bar</li>
+<li><strong>Filter Combination</strong>: Combine search with filters for precise results</li>
+<li><strong>Real-time Results</strong>: Search results update as you type</li>
+<li><strong>Search Scope</strong>: Searches names, descriptions, and creator information</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="understanding-iqube-cards">Understanding iQube Cards<a href="#understanding-iqube-cards" class="hash-link" aria-label="Direct link to Understanding iQube Cards" title="Direct link to Understanding iQube Cards">​</a></h3>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="badge-system">Badge System<a href="#badge-system" class="hash-link" aria-label="Direct link to Badge System" title="Direct link to Badge System">​</a></h4>
+<p>Each iQube displays multiple badges indicating:</p>
+<ul>
+<li><strong>Type Badge</strong>: DataQube, ContentQube, AgentQube, etc. (colored by type)</li>
+<li><strong>Business Model Badge</strong>: Buy, Sell, Rent, Subscribe, etc.</li>
+<li><strong>Visibility Badge</strong>: Library (Private), Registry (Public/Private)</li>
+<li><strong>Status Indicators</strong>: Special status like &quot;Popular&quot; or &quot;Featured&quot;</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="score-visualization">Score Visualization<a href="#score-visualization" class="hash-link" aria-label="Direct link to Score Visualization" title="Direct link to Score Visualization">​</a></h4>
+<p>Scores are displayed using a 5-dot system with color coding:</p>
+<ul>
+<li><strong>Sensitivity</strong>: Red dots (higher = more sensitive)</li>
+<li><strong>Risk</strong>: Yellow/orange dots (higher = more risky)</li>
+<li><strong>Accuracy</strong>: Green dots (higher = more accurate)</li>
+<li><strong>Verifiability</strong>: Green dots (higher = more verifiable)</li>
+<li><strong>Trust</strong>: Green dots (calculated composite score)</li>
+<li><strong>Reliability</strong>: Green dots (calculated composite score)</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="action-buttons">Action Buttons<a href="#action-buttons" class="hash-link" aria-label="Direct link to Action Buttons" title="Direct link to Action Buttons">​</a></h4>
+<p>Each iQube card provides quick action buttons:</p>
+<ul>
+<li><strong>👁️ View</strong>: Open in View mode for inspection</li>
+<li><strong>✏️ Edit</strong>: Open in Edit mode (if you have permissions)</li>
+<li><strong>🛒 Add to Cart</strong>: Add to selection for batch operations</li>
+<li><strong>🗑️ Delete</strong>: Remove from registry (if you own it)</li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_uqyz" id="managing-your-iqubes">Managing Your iQubes<a href="#managing-your-iqubes" class="hash-link" aria-label="Direct link to Managing Your iQubes" title="Direct link to Managing Your iQubes">​</a></h2>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="library-operations">Library Operations<a href="#library-operations" class="hash-link" aria-label="Direct link to Library Operations" title="Direct link to Library Operations">​</a></h3>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="saving-to-library">Saving to Library<a href="#saving-to-library" class="hash-link" aria-label="Direct link to Saving to Library" title="Direct link to Saving to Library">​</a></h4>
+<ol>
+<li><strong>Find Interesting Template</strong>: Browse or search for templates</li>
+<li><strong>Save Action</strong>: Click &quot;Save to Library&quot; button on template card</li>
+<li><strong>Local Storage</strong>: Template is saved to browser localStorage</li>
+<li><strong>Badge Update</strong>: Card badge changes to &quot;Library (Private)&quot;</li>
+<li><strong>Offline Access</strong>: Template remains available even when offline</li>
+</ol>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="library-benefits">Library Benefits<a href="#library-benefits" class="hash-link" aria-label="Direct link to Library Benefits" title="Direct link to Library Benefits">​</a></h4>
+<ul>
+<li><strong>Private Storage</strong>: Only visible to you on your device</li>
+<li><strong>Draft Workspace</strong>: Perfect for work-in-progress iQubes</li>
+<li><strong>No Server Dependency</strong>: Works without internet connection</li>
+<li><strong>Quick Access</strong>: Immediate availability for editing and use</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="managing-library-items">Managing Library Items<a href="#managing-library-items" class="hash-link" aria-label="Direct link to Managing Library Items" title="Direct link to Managing Library Items">​</a></h4>
+<ul>
+<li><strong>View Library</strong>: Filter by &quot;Library&quot; to see only your saved items</li>
+<li><strong>Edit Locally</strong>: Modify templates without affecting original</li>
+<li><strong>Remove from Library</strong>: Delete local copies when no longer needed</li>
+<li><strong>Mint to Registry</strong>: Convert library items to registry entries</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="registry-operations">Registry Operations<a href="#registry-operations" class="hash-link" aria-label="Direct link to Registry Operations" title="Direct link to Registry Operations">​</a></h3>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="minting-to-registry">Minting to Registry<a href="#minting-to-registry" class="hash-link" aria-label="Direct link to Minting to Registry" title="Direct link to Minting to Registry">​</a></h4>
+<p>The minting process converts templates into permanent registry entries:</p>
+<ol>
+<li><strong>Complete Template</strong>: Ensure all required fields are filled</li>
+<li><strong>Initiate Minting</strong>: Click &quot;Mint to Registry&quot; button</li>
+<li><strong>Choose Visibility</strong>: Select Public or Private registry</li>
+<li><strong>Confirmation Dialog</strong>: Review and confirm the irreversible action</li>
+<li><strong>Blockchain Transaction</strong>: Wait for transaction completion</li>
+<li><strong>Registry Update</strong>: iQube appears in registry with new status</li>
+</ol>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="visibility-selection">Visibility Selection<a href="#visibility-selection" class="hash-link" aria-label="Direct link to Visibility Selection" title="Direct link to Visibility Selection">​</a></h4>
+<p>When minting, you must choose visibility:</p>
+<p><strong>Public Registry</strong></p>
+<ul>
+<li>✅ Visible to all users</li>
+<li>✅ Discoverable through search and browsing</li>
+<li>✅ Can be forked and used by others</li>
+<li>❌ Cannot be made private later</li>
+<li>❌ Irreversible decision</li>
+</ul>
+<p><strong>Private Registry</strong></p>
+<ul>
+<li>✅ Visible only to you</li>
+<li>✅ Stored securely on server</li>
+<li>✅ Can be activated to public later</li>
+<li>✅ Maintains privacy until activated</li>
+<li>❌ Not discoverable by others</li>
+</ul>
+<div class="theme-admonition theme-admonition-warning admonition_g6sI alert alert--warning"><div class="admonitionHeading_mplE"><span class="admonitionIcon_jkQc"><svg viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8.893 1.5c-.183-.31-.52-.5-.887-.5s-.703.19-.886.5L.138 13.499a.98.98 0 0 0 0 1.001c.193.31.53.501.886.501h13.964c.367 0 .704-.19.877-.5a1.03 1.03 0 0 0 .01-1.002L8.893 1.5zm.133 11.497H6.987v-2.003h2.039v2.003zm0-3.004H6.987V5.987h2.039v4.006z"></path></svg></span>Important</div><div class="admonitionContent_iUeO"><p>Public minting is irreversible. Once an iQube is minted as public, it cannot be made private again. Choose carefully!</p></div></div>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="template-management">Template Management<a href="#template-management" class="hash-link" aria-label="Direct link to Template Management" title="Direct link to Template Management">​</a></h3>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="creating-custom-templates">Creating Custom Templates<a href="#creating-custom-templates" class="hash-link" aria-label="Direct link to Creating Custom Templates" title="Direct link to Creating Custom Templates">​</a></h4>
+<ol>
+<li><strong>Access Creation</strong>: Click &quot;Create Custom iQube Template&quot;</li>
+<li><strong>Template Form</strong>: Fill out comprehensive template information</li>
+<li><strong>Basic Information</strong>: Name, creator, description</li>
+<li><strong>Scoring Assessment</strong>: Set sensitivity, accuracy, verifiability, risk scores</li>
+<li><strong>Pricing &amp; Rights</strong>: Configure business model and pricing</li>
+<li><strong>Schema Definition</strong>: Define BlakQube data structure</li>
+<li><strong>Save or Mint</strong>: Save to library or mint directly to registry</li>
+</ol>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="template-sections">Template Sections<a href="#template-sections" class="hash-link" aria-label="Direct link to Template Sections" title="Direct link to Template Sections">​</a></h4>
+<p><strong>Basic Information</strong></p>
+<ul>
+<li><strong>iQube Name</strong>: Descriptive name for the template</li>
+<li><strong>Creator</strong>: Your name or organization</li>
+<li><strong>Description</strong>: Detailed description of purpose and content</li>
+<li><strong>Owner Type</strong>: Individual or Organization</li>
+<li><strong>iQube Type</strong>: DataQube, ContentQube, AgentQube, etc.</li>
+</ul>
+<p><strong>Scoring &amp; Risk Assessment</strong></p>
+<ul>
+<li><strong>Sensitivity Score</strong> (1-10): How sensitive is the data?</li>
+<li><strong>Verifiability Score</strong> (1-10): How easily can data be verified?</li>
+<li><strong>Accuracy Score</strong> (1-10): How accurate is the information?</li>
+<li><strong>Risk Score</strong> (1-10): What risks are associated with this data?</li>
+</ul>
+<p><strong>Pricing &amp; Rights</strong></p>
+<ul>
+<li><strong>Business Model</strong>: Buy, Sell, Rent, Subscribe, etc.</li>
+<li><strong>Price</strong>: Monetary value for access</li>
+<li><strong>Duration of Rights</strong>: Forever, Per Use, Time-based, etc.</li>
+<li><strong>Public Wallet Key</strong>: Payment address for transactions</li>
+</ul>
+<p><strong>Wallet &amp; Schema</strong></p>
+<ul>
+<li><strong>BlakQube Schema</strong>: Define private data structure</li>
+<li><strong>Transaction Date</strong>: When template was created</li>
+<li><strong>Additional Metadata</strong>: Custom fields and properties</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="template-validation">Template Validation<a href="#template-validation" class="hash-link" aria-label="Direct link to Template Validation" title="Direct link to Template Validation">​</a></h4>
+<p>Before minting, templates undergo validation:</p>
+<ul>
+<li><strong>Required Fields</strong>: All mandatory fields must be completed</li>
+<li><strong>Score Ranges</strong>: All scores must be between 1-10</li>
+<li><strong>Data Consistency</strong>: Related fields must be compatible</li>
+<li><strong>Schema Validity</strong>: BlakQube schema must be well-formed</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="instance-management">Instance Management<a href="#instance-management" class="hash-link" aria-label="Direct link to Instance Management" title="Direct link to Instance Management">​</a></h3>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="understanding-template-instance-relationships">Understanding Template-Instance Relationships<a href="#understanding-template-instance-relationships" class="hash-link" aria-label="Direct link to Understanding Template-Instance Relationships" title="Direct link to Understanding Template-Instance Relationships">​</a></h4>
+<ul>
+<li><strong>Templates</strong>: Reusable blueprints with defined structure</li>
+<li><strong>Instances</strong>: Specific implementations with populated data</li>
+<li><strong>Inheritance</strong>: Instances maintain connection to source template</li>
+<li><strong>Independence</strong>: Instances can be modified without affecting template</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="creating-instances">Creating Instances<a href="#creating-instances" class="hash-link" aria-label="Direct link to Creating Instances" title="Direct link to Creating Instances">​</a></h4>
+<ol>
+<li><strong>Select Template</strong>: Choose template from registry or library</li>
+<li><strong>Use Mode</strong>: Open template in Use mode</li>
+<li><strong>Configure Instance</strong>: Set instance-specific parameters</li>
+<li><strong>Populate Data</strong>: Fill in MetaQube and BlakQube fields</li>
+<li><strong>Instance Numbering</strong>: System assigns instance numbers (e.g., &quot;3 of 21&quot;)</li>
+<li><strong>Save or Mint</strong>: Save as draft or mint to registry</li>
+</ol>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="instance-features">Instance Features<a href="#instance-features" class="hash-link" aria-label="Direct link to Instance Features" title="Direct link to Instance Features">​</a></h4>
+<ul>
+<li><strong>Numbered Instances</strong>: Automatic counting (e.g., &quot;5 of 100&quot;)</li>
+<li><strong>Template Lineage</strong>: Clear connection to source template</li>
+<li><strong>Independent Editing</strong>: Modify without affecting template</li>
+<li><strong>Batch Creation</strong>: Generate multiple instances efficiently</li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_uqyz" id="advanced-registry-features">Advanced Registry Features<a href="#advanced-registry-features" class="hash-link" aria-label="Direct link to Advanced Registry Features" title="Direct link to Advanced Registry Features">​</a></h2>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="analytics-and-insights">Analytics and Insights<a href="#analytics-and-insights" class="hash-link" aria-label="Direct link to Analytics and Insights" title="Direct link to Analytics and Insights">​</a></h3>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="usage-metrics">Usage Metrics<a href="#usage-metrics" class="hash-link" aria-label="Direct link to Usage Metrics" title="Direct link to Usage Metrics">​</a></h4>
+<p>The Registry provides analytics on:</p>
+<ul>
+<li><strong>View Counts</strong>: How many times iQubes have been viewed</li>
+<li><strong>Usage Statistics</strong>: How often templates are used to create instances</li>
+<li><strong>Popular Templates</strong>: Most frequently accessed templates</li>
+<li><strong>Creator Statistics</strong>: Performance metrics for template creators</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="performance-tracking">Performance Tracking<a href="#performance-tracking" class="hash-link" aria-label="Direct link to Performance Tracking" title="Direct link to Performance Tracking">​</a></h4>
+<ul>
+<li><strong>Score Trends</strong>: How iQube scores change over time</li>
+<li><strong>User Engagement</strong>: Interaction patterns and preferences</li>
+<li><strong>Market Analysis</strong>: Business model effectiveness</li>
+<li><strong>Quality Metrics</strong>: Template and instance quality indicators</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="collaboration-features">Collaboration Features<a href="#collaboration-features" class="hash-link" aria-label="Direct link to Collaboration Features" title="Direct link to Collaboration Features">​</a></h3>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="forking-and-derivation">Forking and Derivation<a href="#forking-and-derivation" class="hash-link" aria-label="Direct link to Forking and Derivation" title="Direct link to Forking and Derivation">​</a></h4>
+<ul>
+<li><strong>Fork Templates</strong>: Create your own version of existing templates</li>
+<li><strong>Maintain Attribution</strong>: Original creator information preserved</li>
+<li><strong>Independent Evolution</strong>: Modify forked templates freely</li>
+<li><strong>Version Tracking</strong>: Track relationship between original and fork</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="sharing-and-distribution">Sharing and Distribution<a href="#sharing-and-distribution" class="hash-link" aria-label="Direct link to Sharing and Distribution" title="Direct link to Sharing and Distribution">​</a></h4>
+<ul>
+<li><strong>Public Sharing</strong>: Make templates available to community</li>
+<li><strong>Private Sharing</strong>: Share with specific users or groups</li>
+<li><strong>Licensing</strong>: Define usage terms and restrictions</li>
+<li><strong>Attribution</strong>: Ensure proper credit for creators</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="quality-assurance">Quality Assurance<a href="#quality-assurance" class="hash-link" aria-label="Direct link to Quality Assurance" title="Direct link to Quality Assurance">​</a></h3>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="community-moderation">Community Moderation<a href="#community-moderation" class="hash-link" aria-label="Direct link to Community Moderation" title="Direct link to Community Moderation">​</a></h4>
+<ul>
+<li><strong>Reporting System</strong>: Report inappropriate or low-quality content</li>
+<li><strong>Quality Reviews</strong>: Community-driven quality assessment</li>
+<li><strong>Verification Badges</strong>: Indicate verified or high-quality templates</li>
+<li><strong>Curation</strong>: Featured and recommended template collections</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="automated-validation">Automated Validation<a href="#automated-validation" class="hash-link" aria-label="Direct link to Automated Validation" title="Direct link to Automated Validation">​</a></h4>
+<ul>
+<li><strong>Schema Validation</strong>: Ensure data structures are well-formed</li>
+<li><strong>Content Scanning</strong>: Automated checks for inappropriate content</li>
+<li><strong>Quality Metrics</strong>: Automated quality scoring</li>
+<li><strong>Duplicate Detection</strong>: Identify and handle duplicate templates</li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_uqyz" id="best-practices">Best Practices<a href="#best-practices" class="hash-link" aria-label="Direct link to Best Practices" title="Direct link to Best Practices">​</a></h2>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="template-creation">Template Creation<a href="#template-creation" class="hash-link" aria-label="Direct link to Template Creation" title="Direct link to Template Creation">​</a></h3>
+<ol>
+<li><strong>Clear Naming</strong>: Use descriptive, searchable names</li>
+<li><strong>Comprehensive Descriptions</strong>: Provide detailed usage information</li>
+<li><strong>Accurate Scoring</strong>: Honestly assess sensitivity, risk, and accuracy</li>
+<li><strong>Complete Schemas</strong>: Define all necessary BlakQube fields</li>
+<li><strong>Test Thoroughly</strong>: Validate templates before public minting</li>
+</ol>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="registry-management-1">Registry Management<a href="#registry-management-1" class="hash-link" aria-label="Direct link to Registry Management" title="Direct link to Registry Management">​</a></h3>
+<ol>
+<li><strong>Regular Maintenance</strong>: Keep your templates updated and relevant</li>
+<li><strong>Community Engagement</strong>: Respond to user feedback and questions</li>
+<li><strong>Quality Focus</strong>: Prioritize quality over quantity</li>
+<li><strong>Documentation</strong>: Provide clear usage instructions</li>
+<li><strong>Version Control</strong>: Track changes and maintain version history</li>
+</ol>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="privacy-and-security">Privacy and Security<a href="#privacy-and-security" class="hash-link" aria-label="Direct link to Privacy and Security" title="Direct link to Privacy and Security">​</a></h3>
+<ol>
+<li><strong>Visibility Decisions</strong>: Carefully consider public vs private implications</li>
+<li><strong>Sensitive Data</strong>: Use BlakQube encryption for private information</li>
+<li><strong>Access Control</strong>: Implement appropriate capability tokens</li>
+<li><strong>Regular Audits</strong>: Review and update access permissions</li>
+<li><strong>Backup Strategy</strong>: Maintain backups of important templates</li>
+</ol>
+<h2 class="anchor anchorWithStickyNavbar_uqyz" id="troubleshooting">Troubleshooting<a href="#troubleshooting" class="hash-link" aria-label="Direct link to Troubleshooting" title="Direct link to Troubleshooting">​</a></h2>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="common-issues">Common Issues<a href="#common-issues" class="hash-link" aria-label="Direct link to Common Issues" title="Direct link to Common Issues">​</a></h3>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="templates-not-appearing">Templates Not Appearing<a href="#templates-not-appearing" class="hash-link" aria-label="Direct link to Templates Not Appearing" title="Direct link to Templates Not Appearing">​</a></h4>
+<ul>
+<li><strong>Check Filters</strong>: Ensure filters aren&#x27;t hiding your templates</li>
+<li><strong>Refresh Browser</strong>: Clear cache and refresh the page</li>
+<li><strong>Verify Minting</strong>: Confirm minting transaction completed successfully</li>
+<li><strong>Check Visibility</strong>: Ensure you&#x27;re looking in the right visibility category</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="minting-failures">Minting Failures<a href="#minting-failures" class="hash-link" aria-label="Direct link to Minting Failures" title="Direct link to Minting Failures">​</a></h4>
+<ul>
+<li><strong>Complete Validation</strong>: Ensure all required fields are filled</li>
+<li><strong>Check Network</strong>: Verify blockchain connectivity</li>
+<li><strong>Sufficient Funds</strong>: Ensure adequate gas/fees for transaction</li>
+<li><strong>Retry Transaction</strong>: Attempt minting again after resolving issues</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="search-not-working">Search Not Working<a href="#search-not-working" class="hash-link" aria-label="Direct link to Search Not Working" title="Direct link to Search Not Working">​</a></h4>
+<ul>
+<li><strong>Clear Search</strong>: Remove search terms and try again</li>
+<li><strong>Check Spelling</strong>: Verify search terms are spelled correctly</li>
+<li><strong>Use Filters</strong>: Combine search with filters for better results</li>
+<li><strong>Browser Issues</strong>: Try different browser or clear cache</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="visibility-problems">Visibility Problems<a href="#visibility-problems" class="hash-link" aria-label="Direct link to Visibility Problems" title="Direct link to Visibility Problems">​</a></h4>
+<ul>
+<li><strong>Understand Levels</strong>: Review visibility level definitions</li>
+<li><strong>Check Permissions</strong>: Verify you have access to view certain iQubes</li>
+<li><strong>Login Status</strong>: Ensure you&#x27;re properly authenticated</li>
+<li><strong>Network Issues</strong>: Check connection to registry services</li>
+</ul>
+<hr>
+<p><em>The Registry provides a comprehensive platform for discovering, creating, and managing iQubes, enabling a vibrant ecosystem of shared decentralized information assets.</em></p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col"><a href="https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/docs/user-operations/registry-management.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_fio8" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_U9li"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"><a class="pagination-nav__link pagination-nav__link--prev" href="/iQubeBeta-Program/docs/user-operations/iqube-operations"><div class="pagination-nav__sublabel">Previous</div><div class="pagination-nav__label">iQube Operations</div></a><a class="pagination-nav__link pagination-nav__link--next" href="/iQubeBeta-Program/docs/user-operations/network-ops"><div class="pagination-nav__sublabel">Next</div><div class="pagination-nav__label">Network Operations (Network Ops)</div></a></nav></div></div><div class="col col--3"><div class="tableOfContents_blQZ thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#registry-overview" class="table-of-contents__link toc-highlight">Registry Overview</a><ul><li><a href="#purpose-and-function" class="table-of-contents__link toc-highlight">Purpose and Function</a></li><li><a href="#visibility-levels" class="table-of-contents__link toc-highlight">Visibility Levels</a></li></ul></li><li><a href="#interface-overview" class="table-of-contents__link toc-highlight">Interface Overview</a><ul><li><a href="#view-modes" class="table-of-contents__link toc-highlight">View Modes</a></li><li><a href="#navigation-controls" class="table-of-contents__link toc-highlight">Navigation Controls</a></li></ul></li><li><a href="#discovering-iqubes" class="table-of-contents__link toc-highlight">Discovering iQubes</a><ul><li><a href="#browsing-templates" class="table-of-contents__link toc-highlight">Browsing Templates</a></li><li><a href="#search-functionality" class="table-of-contents__link toc-highlight">Search Functionality</a></li><li><a href="#understanding-iqube-cards" class="table-of-contents__link toc-highlight">Understanding iQube Cards</a></li></ul></li><li><a href="#managing-your-iqubes" class="table-of-contents__link toc-highlight">Managing Your iQubes</a><ul><li><a href="#library-operations" class="table-of-contents__link toc-highlight">Library Operations</a></li><li><a href="#registry-operations" class="table-of-contents__link toc-highlight">Registry Operations</a></li><li><a href="#template-management" class="table-of-contents__link toc-highlight">Template Management</a></li><li><a href="#instance-management" class="table-of-contents__link toc-highlight">Instance Management</a></li></ul></li><li><a href="#advanced-registry-features" class="table-of-contents__link toc-highlight">Advanced Registry Features</a><ul><li><a href="#analytics-and-insights" class="table-of-contents__link toc-highlight">Analytics and Insights</a></li><li><a href="#collaboration-features" class="table-of-contents__link toc-highlight">Collaboration Features</a></li><li><a href="#quality-assurance" class="table-of-contents__link toc-highlight">Quality Assurance</a></li></ul></li><li><a href="#best-practices" class="table-of-contents__link toc-highlight">Best Practices</a><ul><li><a href="#template-creation" class="table-of-contents__link toc-highlight">Template Creation</a></li><li><a href="#registry-management-1" class="table-of-contents__link toc-highlight">Registry Management</a></li><li><a href="#privacy-and-security" class="table-of-contents__link toc-highlight">Privacy and Security</a></li></ul></li><li><a href="#troubleshooting" class="table-of-contents__link toc-highlight">Troubleshooting</a><ul><li><a href="#common-issues" class="table-of-contents__link toc-highlight">Common Issues</a></li></ul></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/iQubeBeta-Program/docs/intro">Tutorial</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Community</div><ul class="footer__items clean-list"><li class="footer__item"><a href="https://stackoverflow.com/questions/tagged/docusaurus" target="_blank" rel="noopener noreferrer" class="footer__link-item">Stack Overflow<svg width="13.5" height="13.5" aria-hidden="true" class="iconExternalLink_nIf2"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a href="https://discordapp.com/invite/docusaurus" target="_blank" rel="noopener noreferrer" class="footer__link-item">Discord<svg width="13.5" height="13.5" aria-hidden="true" class="iconExternalLink_nIf2"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a href="https://x.com/docusaurus" target="_blank" rel="noopener noreferrer" class="footer__link-item">X<svg width="13.5" height="13.5" aria-hidden="true" class="iconExternalLink_nIf2"><use href="#theme-svg-external-link"></use></svg></a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">More</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/iQubeBeta-Program/blog">Blog</a></li><li class="footer__item"><a href="https://github.com/facebook/docusaurus" target="_blank" rel="noopener noreferrer" class="footer__link-item">GitHub<svg width="13.5" height="13.5" aria-hidden="true" class="iconExternalLink_nIf2"><use href="#theme-svg-external-link"></use></svg></a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2025 My Project, Inc. Built with Docusaurus.</div></div></div></footer></div>
+</body>
+</html>
