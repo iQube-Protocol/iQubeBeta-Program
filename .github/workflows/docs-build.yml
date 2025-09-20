@@ -1,0 +1,35 @@
+name: Docs Build (PR & Main)
+
+on:
+  pull_request:
+    paths:
+      - 'docs/operating-manual/**'
+  push:
+    branches: [ main ]
+    paths:
+      - 'docs/operating-manual/**'
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    name: Build Docusaurus Docs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: docs/operating-manual/package-lock.json
+
+      - name: Install dependencies
+        working-directory: docs/operating-manual
+        run: |
+          npm ci || npm install
+
+      - name: Build site (catch MDX/Mermaid errors)
+        working-directory: docs/operating-manual
+        run: npm run build
