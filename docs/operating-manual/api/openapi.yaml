@@ -1,0 +1,25 @@
+openapi: 3.0.3
+info:
+  title: iQube Program API
+  version: 0.1.0
+  description: Stub OpenAPI spec for iQube Program APIs. Replace with full specification.
+servers:
+  - url: https://api.iqube.local
+paths:
+  /registry/templates:
+    get:
+      summary: List templates
+      responses:
+        '200':
+          description: OK
+    post:
+      summary: Create template
+      responses:
+        '201':
+          description: Created
+  /ops/dvn/status:
+    get:
+      summary: Get DVN status
+      responses:
+        '200':
+          description: OK
