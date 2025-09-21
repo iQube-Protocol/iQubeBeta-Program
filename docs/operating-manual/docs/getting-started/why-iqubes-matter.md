@@ -78,6 +78,14 @@ Together, these elements create a secure, interoperable, and efficient foundatio
 
 ---
 
+## Sidebar Colors Preview
+
+The Aigent Z sidebar shows distinct colors for iQubes submenu headers and icons to improve quick navigation.
+
+![Aigent Z Sidebar – iQubes submenu colors](/img/sidebar-iqubes-colors.png)
+
+---
+
 ## Architecture Overview Diagram
 
 ```mermaid
