@@ -6,7 +6,7 @@ description: Structured overview of iQubes, DNV, personas, Aigents, Orchestrator
 
 # Why iQubes Matter
 
-The iQube Protocol provides the infrastructure for the agentic internet: a new paradigm where information, identities, and AI agents interact across chains in a secure, verifiable, and privacy-preserving way. Just as blockchains made money programmable, iQubes make information and agents programmable.
+The iQube Protocol provides the infrastructure for the agentic internet: a new paradigm where information, identities, and AI agents interact across chains in a secure, verifiable, and privacy-preserving way. Just as blockchains made money programmable, iQubes make knowledge and intelligence to be autonomous and programmable.
 
 ## What iQubes Are
 
@@ -16,7 +16,7 @@ iQubes are atomic, verifiable information assets. Each iQube packages:
 - blakQubes: private payloads, encrypted and selectively accessible.
 - tokenQubes: cryptographic keys that enforce access and control.
 
-Together, these allow information to be:
+Together, these allow knowledge and intelligence to be:
 
 - Verifiable (anchored to Bitcoin through the Decentralized Network of Validation, or DNV).
 - Interoperable (usable across Bitcoin, Ethereum, Solana, and other chains without bridges).
