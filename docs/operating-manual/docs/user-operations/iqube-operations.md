@@ -41,6 +41,16 @@ iQube Operations form the core of the iQube Protocol, providing comprehensive to
 - **Use Cases**: Images, videos, documents, audio files
 - **Format**: Binary data with metadata descriptors
 
+#### TooolQube
+- **Purpose**: Executable capability (actions, tools, and service adapters) 
+- **Use Cases**: MCP/API tools, database operations, file/FS tasks, DevOps workflows, webhooks, orchestration steps
+- **Format**: OpenAPI/JSON Schema, MCP tool manifest, gRPC/Protobuf, CLI spec (args/flags), Docker image ref, OAuth/API keys
+
+#### ModelQube
+- **Purpose**: Model artifact and behavior profile for inference and fine-tuning
+- **Use Cases**: Embedding/reranking/classifying, prompt/routing policies, A/B evaluation, safety/compliance gating, distillation or  learning transfer
+- **Format**: Model card (YAML/JSON), weights (safetensors/ONNX/GGUF), tokenizer/vocab files, config (HuggingFace/MLflow), eval metrics bundle (JSON)
+
 #### AgentQube
 - **Purpose**: AI agent performance and compliance tracking
 - **Use Cases**: Agent behavior logs, performance metrics, compliance records
