@@ -15,10 +15,10 @@ Aigent Z is the unified intelligence agent platform that serves as the primary i
 The Aigent Z interface features a persistent **Nakamoto-style sidebar** with manual section control:
 
 - **Dashboard**: Main overview and analytics
-- **Aigents**: AI persona interactions and chat
-- **iQube Operations**: Core iQube management tools
-- **Registry**: Browse and manage iQube templates and instances
-- **Settings**: Configuration and Network Ops access
+- **Persona**: User context, role and identifiability state
+- **Orchestrator**: Active orchestration agent co-ordinating Aigents and iQubes
+- **iQubes**: iQube activation, management and provisioning
+- **Settings**: Administration and Network Ops
 
 :::tip Navigation Control
 Sidebar sections use manual expand/collapse control to prevent unwanted auto-expansion. Click section headers to toggle visibility of submenu items.
@@ -50,12 +50,12 @@ The main dashboard provides:
 - **Quick Actions**: Fast access to common operations
 - **Analytics**: Usage metrics and performance indicators
 
-### Aigents (AI Personas)
-Specialized AI agent personas for different use cases:
+#### Persona (User Persona)
+- **metaMe**: Customizable persona with configurable personal data and identity management
+- **Additional Personas**: Context-specific persona for various domains
 
-#### Available Personas
-- **metaMe**: Personal data and identity management
-- **Additional Personas**: Context-specific agents for various domains
+### Orchestrators (AI Personas)
+Specialized agent personas for different AI contexts and use cases:
 
 #### Features
 - **Context Transformation Panel**: Modify agent behavior and focus
