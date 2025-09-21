@@ -6,7 +6,7 @@ description: Structured overview of iQubes, DNV, personas, Aigents, Orchestrator
 
 # Why iQubes Matter
 
-The iQube Protocol provides the infrastructure for the agentic internet: a new paradigm where information, identities, and AI agents interact across chains in a secure, verifiable, and privacy-preserving way. Just as blockchains made money programmable, iQubes make knowledge and intelligence to be autonomous and programmable.
+The iQube Protocol provides the infrastructure for the agentic internet: a new paradigm where information, identities, and AI agents interact across chains in a secure, verifiable, and privacy-preserving way. Just as blockchains made money programmable, iQubes make knowledge intelligent, autonomous and programmable.
 
 ## What iQubes Are
 
