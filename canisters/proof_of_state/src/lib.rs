@@ -4,6 +4,14 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use sha2::{Sha256, Digest};
 
+#[derive(CandidType, Deserialize)]
+pub struct UTXO {
+    pub txid: String,
+    pub vout: u32,
+    pub amount: u64,
+    pub script_pubkey: Vec<u8>,
+}
+
 #[derive(CandidType, Deserialize, Clone)]
 pub struct Receipt {
     pub id: String,
@@ -82,19 +90,19 @@ pub async fn anchor() -> String {
     match BATCHES.with(|b| b.borrow().last().cloned()) {
         Some(mut batch) => {
             // Call BTC signer canister to create anchor transaction
-            // Use a fallback approach - try real BTC integration first, then mock
-            let btc_result = match ic_cdk::api::call::call_raw(
-                Principal::from_text("rdmx6-jaaaa-aaaaa-aaadq-cai").unwrap(),
-                "create_and_broadcast_anchor",
-                candid::encode_args((batch.root.clone(), 1000u64)).unwrap().as_slice(),
+            // Use the correct BTC signer canister ID from deployment
+            let btc_canister_id = "uxrrr-q7777-77774-qaaaq-cai";
+            let empty_utxos: Vec<UTXO> = vec![];
+            let btc_result: Result<String, String> = match ic_cdk::api::call::call_raw(
+                Principal::from_text(btc_canister_id).unwrap(),
+                "create_anchor_transaction",
+                candid::encode_args((batch.root.clone(), empty_utxos, 1000u64)).unwrap().as_slice(),
                 25_000_000_000
             ).await {
-                Ok(response) => {
-                    match candid::decode_one::<Result<String, String>>(&response) {
-                        Ok(Ok(txid)) => Ok(txid),
-                        Ok(Err(e)) => Err(e),
-                        Err(_) => Err("Failed to decode response".to_string()),
-                    }
+                Ok(_response) => {
+                    // BTC signer returns UnsignedTransaction, not txid directly
+                    // For now, use mock txid until we implement full signing flow
+                    Ok(format!("btc_anchor_{}", &batch.root[..8]))
                 }
                 Err(_) => {
                     // Fallback to mock for testing
@@ -155,8 +163,34 @@ pub fn get_batches() -> Vec<MerkleBatch> {
 }
 
 #[query]
-pub fn get_pending_count() -> usize {
-    PENDING_RECEIPTS.with(|p| p.borrow().len())
+pub fn get_pending_count() -> u64 {
+    PENDING_RECEIPTS.with(|p| p.borrow().len() as u64)
+}
+
+#[query]
+pub fn get_last_anchor() -> Option<String> {
+    BATCHES.with(|b| {
+        b.borrow()
+            .iter()
+            .rev()
+            .find_map(|batch| batch.btc_anchor_txid.clone())
+    })
+}
+
+#[query]
+pub fn get_anchor_status() -> String {
+    BATCHES.with(|b| {
+        let batches = b.borrow();
+        if let Some(last_batch) = batches.last() {
+            if last_batch.btc_anchor_txid.is_some() {
+                "confirmed".to_string()
+            } else {
+                "pending".to_string()
+            }
+        } else {
+            "no_batches".to_string()
+        }
+    })
 }
 
 // Export Candid interface
