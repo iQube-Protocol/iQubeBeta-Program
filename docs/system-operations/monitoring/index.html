@@ -5,8 +5,8 @@
 <meta name="generator" content="Docusaurus v3.8.1">
 <title data-rh="true">System Monitoring | iQube Protocol Operations Manual</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://iqube-protocol.github.io/iQubeBeta-Program/img/docusaurus-social-card.jpg"><meta data-rh="true" name="twitter:image" content="https://iqube-protocol.github.io/iQubeBeta-Program/img/docusaurus-social-card.jpg"><meta data-rh="true" property="og:url" content="https://iqube-protocol.github.io/iQubeBeta-Program/docs/system-operations/monitoring/"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="System Monitoring | iQube Protocol Operations Manual"><meta data-rh="true" name="description" content="Real-time monitoring of blockchain networks, ICP canisters, and system health"><meta data-rh="true" property="og:description" content="Real-time monitoring of blockchain networks, ICP canisters, and system health"><link data-rh="true" rel="icon" href="/iQubeBeta-Program/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://iqube-protocol.github.io/iQubeBeta-Program/docs/system-operations/monitoring/"><link data-rh="true" rel="alternate" href="https://iqube-protocol.github.io/iQubeBeta-Program/docs/system-operations/monitoring/" hreflang="en"><link data-rh="true" rel="alternate" href="https://iqube-protocol.github.io/iQubeBeta-Program/docs/system-operations/monitoring/" hreflang="x-default"><script data-rh="true" type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"System Monitoring","item":"https://iqube-protocol.github.io/iQubeBeta-Program/docs/system-operations/monitoring"}]}</script><link rel="alternate" type="application/rss+xml" href="/iQubeBeta-Program/blog/rss.xml" title="iQube Protocol Operations Manual RSS Feed">
 <link rel="alternate" type="application/atom+xml" href="/iQubeBeta-Program/blog/atom.xml" title="iQube Protocol Operations Manual Atom Feed"><link rel="stylesheet" href="/iQubeBeta-Program/assets/css/styles.d68e2a60.css">
-<script src="/iQubeBeta-Program/assets/js/runtime~main.618dd032.js" defer="defer"></script>
-<script src="/iQubeBeta-Program/assets/js/main.97f26b7c.js" defer="defer"></script>
+<script src="/iQubeBeta-Program/assets/js/runtime~main.340e617f.js" defer="defer"></script>
+<script src="/iQubeBeta-Program/assets/js/main.ae3d0bd4.js" defer="defer"></script>
 </head>
 <body class="navigation-with-keyboard">
 <svg xmlns="http://www.w3.org/2000/svg" style="display: none;"><defs>
@@ -151,6 +151,7 @@
 <li><strong>Attestation Status</strong>: Message verification and attestation progress</li>
 <li><strong>EVM Transaction Monitoring</strong>: Cross-chain transaction tracking</li>
 <li><strong>ICP Receipt Generation</strong>: Receipt creation for processed messages</li>
+<li><strong>Fallback System</strong>: Local RPC monitoring when canister unavailable</li>
 </ul>
 <h4 class="anchor anchorWithStickyNavbar_uqyz" id="key-metrics-2">Key Metrics<a href="#key-metrics-2" class="hash-link" aria-label="Direct link to Key Metrics" title="Direct link to Key Metrics">​</a></h4>
 <ul>
@@ -158,6 +159,21 @@
 <li><strong>Processing Time</strong>: Average message processing duration</li>
 <li><strong>Success Rate</strong>: Percentage of successfully processed messages</li>
 <li><strong>Error Rate</strong>: Failed message processing percentage</li>
+<li><strong>Fallback Activation</strong>: Frequency of fallback system usage</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="current-status-september-2025">Current Status (September 2025)<a href="#current-status-september-2025" class="hash-link" aria-label="Direct link to Current Status (September 2025)" title="Direct link to Current Status (September 2025)">​</a></h4>
+<div class="theme-admonition theme-admonition-warning admonition_g6sI alert alert--warning"><div class="admonitionHeading_mplE"><span class="admonitionIcon_jkQc"><svg viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8.893 1.5c-.183-.31-.52-.5-.887-.5s-.703.19-.886.5L.138 13.499a.98.98 0 0 0 0 1.001c.193.31.53.501.886.501h13.964c.367 0 .704-.19.877-.5a1.03 1.03 0 0 0 .01-1.002L8.893 1.5zm.133 11.497H6.987v-2.003h2.039v2.003zm0-3.004H6.987V5.987h2.039v4.006z"></path></svg></span>DVN Canister Dependencies</div><div class="admonitionContent_iUeO"><p>The DVN canister currently experiences <code>canister_not_found</code> errors due to outdated dependency canister IDs. A comprehensive fallback system provides:</p><ul>
+<li><strong>Local RPC Monitoring</strong>: Direct queries to Amoy/Sepolia RPC endpoints</li>
+<li><strong>Transaction Tracking</strong>: Maintains transaction status as <code>local:txHash</code> format</li>
+<li><strong>Status Persistence</strong>: Transaction data persists across page refreshes</li>
+<li><strong>Seamless UX</strong>: Users experience minimal disruption during fallback mode</li>
+</ul></div></div>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="fallback-system-monitoring">Fallback System Monitoring<a href="#fallback-system-monitoring" class="hash-link" aria-label="Direct link to Fallback System Monitoring" title="Direct link to Fallback System Monitoring">​</a></h4>
+<ul>
+<li><strong>Activation Detection</strong>: Automatic detection of canister failures</li>
+<li><strong>RPC Health</strong>: Direct monitoring of Ethereum/Polygon RPC endpoints</li>
+<li><strong>Data Consistency</strong>: Validation of fallback data against primary sources</li>
+<li><strong>Recovery Tracking</strong>: Monitoring for canister availability restoration</li>
 </ul>
 <h3 class="anchor anchorWithStickyNavbar_uqyz" id="bitcoin-testnet-integration">Bitcoin Testnet Integration<a href="#bitcoin-testnet-integration" class="hash-link" aria-label="Direct link to Bitcoin Testnet Integration" title="Direct link to Bitcoin Testnet Integration">​</a></h3>
 <h4 class="anchor anchorWithStickyNavbar_uqyz" id="monitoring-scope-3">Monitoring Scope<a href="#monitoring-scope-3" class="hash-link" aria-label="Direct link to Monitoring Scope" title="Direct link to Monitoring Scope">​</a></h4>
@@ -166,6 +182,7 @@
 <li><strong>Address Generation</strong>: Bitcoin testnet address creation success</li>
 <li><strong>Balance Monitoring</strong>: Bitcoin testnet balance tracking</li>
 <li><strong>Network Connectivity</strong>: Bitcoin testnet node accessibility</li>
+<li><strong>Dual-API Reliability</strong>: Multiple endpoint monitoring for resilience</li>
 </ul>
 <h4 class="anchor anchorWithStickyNavbar_uqyz" id="key-metrics-3">Key Metrics<a href="#key-metrics-3" class="hash-link" aria-label="Direct link to Key Metrics" title="Direct link to Key Metrics">​</a></h4>
 <ul>
@@ -173,7 +190,23 @@
 <li><strong>Fee Estimation</strong>: Current network fee rates</li>
 <li><strong>UTXO Management</strong>: Unspent transaction output tracking</li>
 <li><strong>Signing Success</strong>: Threshold signature success rate</li>
+<li><strong>API Response Time</strong>: Monitoring of mempool.space and blockstream.info</li>
+<li><strong>Block Height Accuracy</strong>: Real-time Bitcoin testnet block tracking</li>
 </ul>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="current-status-september-2025-1">Current Status (September 2025)<a href="#current-status-september-2025-1" class="hash-link" aria-label="Direct link to Current Status (September 2025)" title="Direct link to Current Status (September 2025)">​</a></h4>
+<div class="theme-admonition theme-admonition-info admonition_g6sI alert alert--info"><div class="admonitionHeading_mplE"><span class="admonitionIcon_jkQc"><svg viewBox="0 0 14 16"><path fill-rule="evenodd" d="M7 2.3c3.14 0 5.7 2.56 5.7 5.7s-2.56 5.7-5.7 5.7A5.71 5.71 0 0 1 1.3 8c0-3.14 2.56-5.7 5.7-5.7zM7 1C3.14 1 0 4.14 0 8s3.14 7 7 7 7-3.14 7-7-3.14-7-7-7zm1 3H6v5h2V4zm0 6H6v2h2v-2z"></path></svg></span>BTC Integration Reliability</div><div class="admonitionContent_iUeO"><p>Bitcoin testnet integration features enhanced reliability through:</p><ul>
+<li><strong>Dual-API System</strong>: Primary (mempool.space) with automatic fallback (blockstream.info)</li>
+<li><strong>Client-Side Caching</strong>: 10-minute cache for block height during API outages</li>
+<li><strong>Timeout Management</strong>: 5-second timeout per API with automatic failover</li>
+<li><strong>Status Display</strong>: Shows which API endpoint is currently active</li>
+</ul></div></div>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="anchor-functionality-status">Anchor Functionality Status<a href="#anchor-functionality-status" class="hash-link" aria-label="Direct link to Anchor Functionality Status" title="Direct link to Anchor Functionality Status">​</a></h4>
+<div class="theme-admonition theme-admonition-warning admonition_g6sI alert alert--warning"><div class="admonitionHeading_mplE"><span class="admonitionIcon_jkQc"><svg viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8.893 1.5c-.183-.31-.52-.5-.887-.5s-.703.19-.886.5L.138 13.499a.98.98 0 0 0 0 1.001c.193.31.53.501.886.501h13.964c.367 0 .704-.19.877-.5a1.03 1.03 0 0 0 .01-1.002L8.893 1.5zm.133 11.497H6.987v-2.003h2.039v2.003zm0-3.004H6.987V5.987h2.039v4.006z"></path></svg></span>Anchor Methods Unavailable</div><div class="admonitionContent_iUeO"><p>The proof_of_state canister currently has limited functionality:</p><ul>
+<li><strong>Available Methods</strong>: <code>get_batches</code>, <code>get_pending_count</code> (query methods only)</li>
+<li><strong>Missing Methods</strong>: <code>issue_receipt</code>, <code>batch</code>, <code>anchor</code> (update methods required for anchoring)</li>
+<li><strong>Current State</strong>: Diagnostic mode with detailed error reporting</li>
+<li><strong>Resolution</strong>: Requires canister redeployment with full anchor functionality</li>
+</ul></div></div>
 <h2 class="anchor anchorWithStickyNavbar_uqyz" id="performance-monitoring">Performance Monitoring<a href="#performance-monitoring" class="hash-link" aria-label="Direct link to Performance Monitoring" title="Direct link to Performance Monitoring">​</a></h2>
 <h3 class="anchor anchorWithStickyNavbar_uqyz" id="response-time-tracking">Response Time Tracking<a href="#response-time-tracking" class="hash-link" aria-label="Direct link to Response Time Tracking" title="Direct link to Response Time Tracking">​</a></h3>
 <ul>

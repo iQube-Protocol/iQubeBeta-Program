@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en" dir="ltr" class="docs-wrapper plugin-docs plugin-id-default docs-version-current docs-doc-page docs-doc-id-system-operations/cross-chain-operations" data-has-hydrated="false">
+<head>
+<meta charset="UTF-8">
+<meta name="generator" content="Docusaurus v3.8.1">
+<title data-rh="true">Cross-Chain Operations | iQube Protocol Operations Manual</title><meta data-rh="true" name="viewport" content="width=device-width,initial-scale=1"><meta data-rh="true" name="twitter:card" content="summary_large_image"><meta data-rh="true" property="og:image" content="https://iqube-protocol.github.io/iQubeBeta-Program/img/docusaurus-social-card.jpg"><meta data-rh="true" name="twitter:image" content="https://iqube-protocol.github.io/iQubeBeta-Program/img/docusaurus-social-card.jpg"><meta data-rh="true" property="og:url" content="https://iqube-protocol.github.io/iQubeBeta-Program/docs/system-operations/cross-chain-operations/"><meta data-rh="true" property="og:locale" content="en"><meta data-rh="true" name="docusaurus_locale" content="en"><meta data-rh="true" name="docsearch:language" content="en"><meta data-rh="true" name="docusaurus_version" content="current"><meta data-rh="true" name="docusaurus_tag" content="docs-default-current"><meta data-rh="true" name="docsearch:version" content="current"><meta data-rh="true" name="docsearch:docusaurus_tag" content="docs-default-current"><meta data-rh="true" property="og:title" content="Cross-Chain Operations | iQube Protocol Operations Manual"><meta data-rh="true" name="description" content="EVM transaction monitoring, DVN operations, and BTC anchoring workflows"><meta data-rh="true" property="og:description" content="EVM transaction monitoring, DVN operations, and BTC anchoring workflows"><link data-rh="true" rel="icon" href="/iQubeBeta-Program/img/favicon.ico"><link data-rh="true" rel="canonical" href="https://iqube-protocol.github.io/iQubeBeta-Program/docs/system-operations/cross-chain-operations/"><link data-rh="true" rel="alternate" href="https://iqube-protocol.github.io/iQubeBeta-Program/docs/system-operations/cross-chain-operations/" hreflang="en"><link data-rh="true" rel="alternate" href="https://iqube-protocol.github.io/iQubeBeta-Program/docs/system-operations/cross-chain-operations/" hreflang="x-default"><link rel="alternate" type="application/rss+xml" href="/iQubeBeta-Program/blog/rss.xml" title="iQube Protocol Operations Manual RSS Feed">
+<link rel="alternate" type="application/atom+xml" href="/iQubeBeta-Program/blog/atom.xml" title="iQube Protocol Operations Manual Atom Feed"><link rel="stylesheet" href="/iQubeBeta-Program/assets/css/styles.d68e2a60.css">
+<script src="/iQubeBeta-Program/assets/js/runtime~main.340e617f.js" defer="defer"></script>
+<script src="/iQubeBeta-Program/assets/js/main.ae3d0bd4.js" defer="defer"></script>
+</head>
+<body class="navigation-with-keyboard">
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;"><defs>
+<symbol id="theme-svg-external-link" viewBox="0 0 24 24"><path fill="currentColor" d="M21 13v10h-21v-19h12v2h-10v15h17v-8h2zm3-12h-10.988l4.035 4-6.977 7.07 2.828 2.828 6.977-7.07 4.125 4.172v-11z"/></symbol>
+</defs></svg>
+<script>!function(){var t="light";var e=function(){try{return new URLSearchParams(window.location.search).get("docusaurus-theme")}catch(t){}}()||function(){try{return window.localStorage.getItem("theme")}catch(t){}}();document.documentElement.setAttribute("data-theme",e||t),document.documentElement.setAttribute("data-theme-choice",e||t)}(),function(){try{const c=new URLSearchParams(window.location.search).entries();for(var[t,e]of c)if(t.startsWith("docusaurus-data-")){var a=t.replace("docusaurus-data-","data-");document.documentElement.setAttribute(a,e)}}catch(t){}}()</script><div id="__docusaurus"><link rel="preload" as="image" href="/iQubeBeta-Program/img/logo.svg"><div role="region" aria-label="Skip to main content"><a class="skipToContent_ILil" href="#__docusaurus_skipToContent_fallback">Skip to main content</a></div><nav aria-label="Main" class="theme-layout-navbar navbar navbar--fixed-top"><div class="navbar__inner"><div class="theme-layout-navbar-left navbar__items"><button aria-label="Toggle navigation bar" aria-expanded="false" class="navbar__toggle clean-btn" type="button"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><path stroke="currentColor" stroke-linecap="round" stroke-miterlimit="10" stroke-width="2" d="M4 7h22M4 15h22M4 23h22"></path></svg></button><a class="navbar__brand" href="/iQubeBeta-Program/"><div class="navbar__logo"><img src="/iQubeBeta-Program/img/logo.svg" alt="iQube Protocol Logo" class="themedComponent_mdsI themedComponent--light_MDtW"><img src="/iQubeBeta-Program/img/logo.svg" alt="iQube Protocol Logo" class="themedComponent_mdsI themedComponent--dark_EqFv"></div><b class="navbar__title text--truncate">iQube Protocol</b></a><a class="navbar__item navbar__link" href="/iQubeBeta-Program/docs/intro/">Operations Manual</a></div><div class="theme-layout-navbar-right navbar__items navbar__items--right"><a href="https://github.com/iQube-Protocol/iQubeBeta-Program" target="_blank" rel="noopener noreferrer" class="navbar__item navbar__link">GitHub<svg width="13.5" height="13.5" aria-hidden="true" class="iconExternalLink_nIf2"><use href="#theme-svg-external-link"></use></svg></a><div class="toggle_WpoV colorModeToggle_Bg6z"><button class="clean-btn toggleButton_W_tu toggleButtonDisabled_t5Gg" type="button" disabled="" title="system mode" aria-label="Switch between dark and light mode (currently system mode)"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_YMAN lightToggleIcon_YRcq"><path fill="currentColor" d="M12,9c1.65,0,3,1.35,3,3s-1.35,3-3,3s-3-1.35-3-3S10.35,9,12,9 M12,7c-2.76,0-5,2.24-5,5s2.24,5,5,5s5-2.24,5-5 S14.76,7,12,7L12,7z M2,13l2,0c0.55,0,1-0.45,1-1s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S1.45,13,2,13z M20,13l2,0c0.55,0,1-0.45,1-1 s-0.45-1-1-1l-2,0c-0.55,0-1,0.45-1,1S19.45,13,20,13z M11,2v2c0,0.55,0.45,1,1,1s1-0.45,1-1V2c0-0.55-0.45-1-1-1S11,1.45,11,2z M11,20v2c0,0.55,0.45,1,1,1s1-0.45,1-1v-2c0-0.55-0.45-1-1-1C11.45,19,11,19.45,11,20z M5.99,4.58c-0.39-0.39-1.03-0.39-1.41,0 c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0s0.39-1.03,0-1.41L5.99,4.58z M18.36,16.95 c-0.39-0.39-1.03-0.39-1.41,0c-0.39,0.39-0.39,1.03,0,1.41l1.06,1.06c0.39,0.39,1.03,0.39,1.41,0c0.39-0.39,0.39-1.03,0-1.41 L18.36,16.95z M19.42,5.99c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06c-0.39,0.39-0.39,1.03,0,1.41 s1.03,0.39,1.41,0L19.42,5.99z M7.05,18.36c0.39-0.39,0.39-1.03,0-1.41c-0.39-0.39-1.03-0.39-1.41,0l-1.06,1.06 c-0.39,0.39-0.39,1.03,0,1.41s1.03,0.39,1.41,0L7.05,18.36z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_YMAN darkToggleIcon_Nzyx"><path fill="currentColor" d="M9.37,5.51C9.19,6.15,9.1,6.82,9.1,7.5c0,4.08,3.32,7.4,7.4,7.4c0.68,0,1.35-0.09,1.99-0.27C17.45,17.19,14.93,19,12,19 c-3.86,0-7-3.14-7-7C5,9.07,6.81,6.55,9.37,5.51z M12,3c-4.97,0-9,4.03-9,9s4.03,9,9,9s9-4.03,9-9c0-0.46-0.04-0.92-0.1-1.36 c-0.98,1.37-2.58,2.26-4.4,2.26c-2.98,0-5.4-2.42-5.4-5.4c0-1.81,0.89-3.42,2.26-4.4C12.92,3.04,12.46,3,12,3L12,3z"></path></svg><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" class="toggleIcon_YMAN systemToggleIcon_KNIm"><path fill="currentColor" d="m12 21c4.971 0 9-4.029 9-9s-4.029-9-9-9-9 4.029-9 9 4.029 9 9 9zm4.95-13.95c1.313 1.313 2.05 3.093 2.05 4.95s-0.738 3.637-2.05 4.95c-1.313 1.313-3.093 2.05-4.95 2.05v-14c1.857 0 3.637 0.737 4.95 2.05z"></path></svg></button></div><div class="navbarSearchContainer_Ouod"></div></div></div><div role="presentation" class="navbar-sidebar__backdrop"></div></nav><div id="__docusaurus_skipToContent_fallback" class="theme-layout-main main-wrapper mainWrapper_K0kh"><div class="docsWrapper_UvvF"><button aria-label="Scroll back to top" class="clean-btn theme-back-to-top-button backToTopButton_LotE" type="button"></button><div class="docRoot_tcBc"><main class="docMainContainer_JK7S docMainContainerEnhanced_xJ58"><div class="container padding-top--md padding-bottom--lg"><div class="row"><div class="col docItemCol_OPha"><div class="docItemContainer_jKeB"><article><div class="tocCollapsible_uFVe theme-doc-toc-mobile tocMobile_jdt1"><button type="button" class="clean-btn tocCollapsibleButton_IkgS">On this page</button></div><div class="theme-doc-markdown markdown"><header><h1>Cross-Chain Operations</h1></header>
+<p>The iQube Protocol implements comprehensive cross-chain operations through the Operations Console, enabling seamless monitoring and management of transactions across multiple blockchain networks. This guide covers EVM transaction creation, DVN (Decentralized Verifier Network) monitoring, and BTC anchoring operations.</p>
+<h2 class="anchor anchorWithStickyNavbar_uqyz" id="overview">Overview<a href="#overview" class="hash-link" aria-label="Direct link to Overview" title="Direct link to Overview">​</a></h2>
+<p>Cross-chain operations in iQube Protocol follow this workflow:</p>
+<!-- -->
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="key-components">Key Components<a href="#key-components" class="hash-link" aria-label="Direct link to Key Components" title="Direct link to Key Components">​</a></h3>
+<ul>
+<li><strong>EVM Networks</strong>: Ethereum Sepolia and Polygon Amoy testnets</li>
+<li><strong>DVN System</strong>: LayerZero-based decentralized verification</li>
+<li><strong>ICP Canisters</strong>: proof_of_state, cross_chain_service, btc_signer_psbt</li>
+<li><strong>BTC Integration</strong>: Bitcoin testnet anchoring and verification</li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_uqyz" id="evm-transaction-operations">EVM Transaction Operations<a href="#evm-transaction-operations" class="hash-link" aria-label="Direct link to EVM Transaction Operations" title="Direct link to EVM Transaction Operations">​</a></h2>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="metamask-integration">MetaMask Integration<a href="#metamask-integration" class="hash-link" aria-label="Direct link to MetaMask Integration" title="Direct link to MetaMask Integration">​</a></h3>
+<p>The Operations Console provides direct MetaMask integration for creating test transactions:</p>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="supported-networks">Supported Networks<a href="#supported-networks" class="hash-link" aria-label="Direct link to Supported Networks" title="Direct link to Supported Networks">​</a></h4>
+<ul>
+<li><strong>Ethereum Sepolia</strong> (Chain ID: 11155111)</li>
+<li><strong>Polygon Amoy</strong> (Chain ID: 80002)</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="transaction-creation-process">Transaction Creation Process<a href="#transaction-creation-process" class="hash-link" aria-label="Direct link to Transaction Creation Process" title="Direct link to Transaction Creation Process">​</a></h4>
+<ol>
+<li><strong>Access DVN Card</strong>: Navigate to the DVN monitoring card in Operations Console</li>
+<li><strong>Select Network</strong>: Choose from dropdown (Sepolia or Amoy)</li>
+<li><strong>Create Transaction</strong>: Click &quot;Create Test TX (MetaMask)&quot;</li>
+<li><strong>MetaMask Interaction</strong>:<!-- -->
+<ul>
+<li>Automatic chain switching if needed</li>
+<li>Self-transfer transaction (0 value)</li>
+<li>User confirms transaction in MetaMask</li>
+</ul>
+</li>
+<li><strong>Transaction Tracking</strong>: Hash is automatically captured and displayed</li>
+</ol>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="transaction-monitoring">Transaction Monitoring<a href="#transaction-monitoring" class="hash-link" aria-label="Direct link to Transaction Monitoring" title="Direct link to Transaction Monitoring">​</a></h4>
+<p>After transaction creation:</p>
+<ol>
+<li><strong>Automatic Monitoring</strong>: Transaction hash is automatically monitored</li>
+<li><strong>Status Updates</strong>: Real-time status updates as transaction confirms</li>
+<li><strong>Persistence</strong>: Transaction hash persists across page refreshes</li>
+<li><strong>Explorer Links</strong>: Direct links to blockchain explorers for verification</li>
+</ol>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="manual-transaction-monitoring">Manual Transaction Monitoring<a href="#manual-transaction-monitoring" class="hash-link" aria-label="Direct link to Manual Transaction Monitoring" title="Direct link to Manual Transaction Monitoring">​</a></h3>
+<p>You can also monitor existing transactions:</p>
+<ol>
+<li><strong>Input Transaction Hash</strong>: Paste any valid EVM transaction hash</li>
+<li><strong>Select Network</strong>: Choose appropriate network (Sepolia/Amoy)</li>
+<li><strong>Start Monitoring</strong>: Click &quot;Monitor&quot; to begin tracking</li>
+<li><strong>Status Display</strong>: View confirmation status and details</li>
+</ol>
+<h2 class="anchor anchorWithStickyNavbar_uqyz" id="dvn-decentralized-verifier-network-operations">DVN (Decentralized Verifier Network) Operations<a href="#dvn-decentralized-verifier-network-operations" class="hash-link" aria-label="Direct link to DVN (Decentralized Verifier Network) Operations" title="Direct link to DVN (Decentralized Verifier Network) Operations">​</a></h2>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="dvn-architecture">DVN Architecture<a href="#dvn-architecture" class="hash-link" aria-label="Direct link to DVN Architecture" title="Direct link to DVN Architecture">​</a></h3>
+<p>The DVN system processes cross-chain messages through LayerZero protocol integration:</p>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="core-components">Core Components<a href="#core-components" class="hash-link" aria-label="Direct link to Core Components" title="Direct link to Core Components">​</a></h4>
+<ul>
+<li><strong>cross_chain_service Canister</strong>: Main DVN logic and message processing</li>
+<li><strong>Message Queue</strong>: Pending messages awaiting verification</li>
+<li><strong>Attestation System</strong>: Multi-validator message verification</li>
+<li><strong>Verification Engine</strong>: LayerZero message validation</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="dvn-monitoring-workflow">DVN Monitoring Workflow<a href="#dvn-monitoring-workflow" class="hash-link" aria-label="Direct link to DVN Monitoring Workflow" title="Direct link to DVN Monitoring Workflow">​</a></h3>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="message-processing-states">Message Processing States<a href="#message-processing-states" class="hash-link" aria-label="Direct link to Message Processing States" title="Direct link to Message Processing States">​</a></h4>
+<ol>
+<li><strong>Submitted</strong>: Message submitted to DVN for processing</li>
+<li><strong>Monitored</strong>: EVM transaction being tracked</li>
+<li><strong>Attested</strong>: Message verified by validators</li>
+<li><strong>Verified</strong>: Final verification complete</li>
+<li><strong>Executed</strong>: Cross-chain operation completed</li>
+</ol>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="current-status-september-2025">Current Status (September 2025)<a href="#current-status-september-2025" class="hash-link" aria-label="Direct link to Current Status (September 2025)" title="Direct link to Current Status (September 2025)">​</a></h4>
+<div class="theme-admonition theme-admonition-warning admonition_g6sI alert alert--warning"><div class="admonitionHeading_mplE"><span class="admonitionIcon_jkQc"><svg viewBox="0 0 16 16"><path fill-rule="evenodd" d="M8.893 1.5c-.183-.31-.52-.5-.887-.5s-.703.19-.886.5L.138 13.499a.98.98 0 0 0 0 1.001c.193.31.53.501.886.501h13.964c.367 0 .704-.19.877-.5a1.03 1.03 0 0 0 .01-1.002L8.893 1.5zm.133 11.497H6.987v-2.003h2.039v2.003zm0-3.004H6.987V5.987h2.039v4.006z"></path></svg></span>DVN Canister Dependencies</div><div class="admonitionContent_iUeO"><p>The DVN canister currently has dependency issues causing <code>canister_not_found</code> errors. A comprehensive fallback system is in place:</p><ul>
+<li><strong>Fallback Monitoring</strong>: Uses direct RPC queries when canister unavailable</li>
+<li><strong>Local Tracking</strong>: Messages tracked as <code>local:txHash</code> format</li>
+<li><strong>Status Persistence</strong>: Transaction status maintained across sessions</li>
+<li><strong>Recovery Path</strong>: Automatic recovery when canister becomes available</li>
+</ul></div></div>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="dvn-fallback-system">DVN Fallback System<a href="#dvn-fallback-system" class="hash-link" aria-label="Direct link to DVN Fallback System" title="Direct link to DVN Fallback System">​</a></h3>
+<p>When the DVN canister is unavailable, the system automatically:</p>
+<ol>
+<li><strong>Detects Failure</strong>: Identifies <code>canister_not_found</code> errors</li>
+<li><strong>Activates Fallback</strong>: Switches to local RPC monitoring</li>
+<li><strong>Maintains Functionality</strong>: Continues transaction tracking</li>
+<li><strong>Preserves Data</strong>: Keeps transaction hashes and status</li>
+<li><strong>Provides Feedback</strong>: Clear indication of fallback mode</li>
+</ol>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="fallback-features">Fallback Features<a href="#fallback-features" class="hash-link" aria-label="Direct link to Fallback Features" title="Direct link to Fallback Features">​</a></h4>
+<ul>
+<li><strong>Direct RPC Queries</strong>: Queries Amoy/Sepolia RPC directly</li>
+<li><strong>Transaction Receipts</strong>: Retrieves and displays transaction status</li>
+<li><strong>Status Mapping</strong>: Maps RPC data to DVN-compatible format</li>
+<li><strong>Seamless UX</strong>: Users experience minimal disruption</li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_uqyz" id="btc-anchoring-operations">BTC Anchoring Operations<a href="#btc-anchoring-operations" class="hash-link" aria-label="Direct link to BTC Anchoring Operations" title="Direct link to BTC Anchoring Operations">​</a></h2>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="anchor-system-architecture">Anchor System Architecture<a href="#anchor-system-architecture" class="hash-link" aria-label="Direct link to Anchor System Architecture" title="Direct link to Anchor System Architecture">​</a></h3>
+<p>Bitcoin anchoring creates immutable records of cross-chain operations:</p>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="components">Components<a href="#components" class="hash-link" aria-label="Direct link to Components" title="Direct link to Components">​</a></h4>
+<ul>
+<li><strong>proof_of_state Canister</strong>: Manages receipts and batches</li>
+<li><strong>btc_signer_psbt Canister</strong>: Bitcoin transaction signing</li>
+<li><strong>BTC Testnet</strong>: Bitcoin testnet for anchor transactions</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="anchor-workflow">Anchor Workflow<a href="#anchor-workflow" class="hash-link" aria-label="Direct link to Anchor Workflow" title="Direct link to Anchor Workflow">​</a></h3>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="expected-process">Expected Process<a href="#expected-process" class="hash-link" aria-label="Direct link to Expected Process" title="Direct link to Expected Process">​</a></h4>
+<ol>
+<li><strong>Receipt Creation</strong>: DVN creates receipt in proof_of_state</li>
+<li><strong>Batch Formation</strong>: Multiple receipts grouped into batches</li>
+<li><strong>Merkle Root</strong>: Batch root calculated for anchoring</li>
+<li><strong>BTC Transaction</strong>: Anchor transaction created and signed</li>
+<li><strong>Broadcast</strong>: Transaction broadcast to Bitcoin testnet</li>
+<li><strong>Confirmation</strong>: Transaction confirmed in Bitcoin block</li>
+</ol>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="current-status-september-2025-1">Current Status (September 2025)<a href="#current-status-september-2025-1" class="hash-link" aria-label="Direct link to Current Status (September 2025)" title="Direct link to Current Status (September 2025)">​</a></h4>
+<div class="theme-admonition theme-admonition-info admonition_g6sI alert alert--info"><div class="admonitionHeading_mplE"><span class="admonitionIcon_jkQc"><svg viewBox="0 0 14 16"><path fill-rule="evenodd" d="M7 2.3c3.14 0 5.7 2.56 5.7 5.7s-2.56 5.7-5.7 5.7A5.71 5.71 0 0 1 1.3 8c0-3.14 2.56-5.7 5.7-5.7zM7 1C3.14 1 0 4.14 0 8s3.14 7 7 7 7-3.14 7-7-3.14-7-7-7zm1 3H6v5h2V4zm0 6H6v2h2v-2z"></path></svg></span>Anchor Development Status</div><div class="admonitionContent_iUeO"><p>BTC anchoring is currently in diagnostic mode:</p><ul>
+<li><strong>Canister Connectivity</strong>: ✅ proof_of_state canister reachable</li>
+<li><strong>Available Methods</strong>: <code>get_batches</code>, <code>get_pending_count</code> (query methods)</li>
+<li><strong>Missing Methods</strong>: <code>issue_receipt</code>, <code>batch</code>, <code>anchor</code> (update methods)</li>
+<li><strong>Status</strong>: Requires canister redeployment with full functionality</li>
+</ul></div></div>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="anchor-diagnostics">Anchor Diagnostics<a href="#anchor-diagnostics" class="hash-link" aria-label="Direct link to Anchor Diagnostics" title="Direct link to Anchor Diagnostics">​</a></h3>
+<p>The anchor system provides detailed diagnostic information:</p>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="available-information">Available Information<a href="#available-information" class="hash-link" aria-label="Direct link to Available Information" title="Direct link to Available Information">​</a></h4>
+<ul>
+<li><strong>Canister Status</strong>: Connection health to proof_of_state</li>
+<li><strong>Batch Count</strong>: Number of existing batches (currently 0)</li>
+<li><strong>Pending Receipts</strong>: Count of pending receipts</li>
+<li><strong>Method Availability</strong>: List of available canister methods</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="diagnostic-testing">Diagnostic Testing<a href="#diagnostic-testing" class="hash-link" aria-label="Direct link to Diagnostic Testing" title="Direct link to Diagnostic Testing">​</a></h4>
+<ol>
+<li><strong>Click Anchor Button</strong>: Attempts to create test anchor</li>
+<li><strong>Method Detection</strong>: Shows available vs. required methods</li>
+<li><strong>Error Analysis</strong>: Detailed error messages with next steps</li>
+<li><strong>Status Reporting</strong>: Clear indication of current limitations</li>
+</ol>
+<h2 class="anchor anchorWithStickyNavbar_uqyz" id="btc-testnet-integration">BTC Testnet Integration<a href="#btc-testnet-integration" class="hash-link" aria-label="Direct link to BTC Testnet Integration" title="Direct link to BTC Testnet Integration">​</a></h2>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="network-monitoring">Network Monitoring<a href="#network-monitoring" class="hash-link" aria-label="Direct link to Network Monitoring" title="Direct link to Network Monitoring">​</a></h3>
+<p>Bitcoin testnet integration provides:</p>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="real-time-data">Real-Time Data<a href="#real-time-data" class="hash-link" aria-label="Direct link to Real-Time Data" title="Direct link to Real-Time Data">​</a></h4>
+<ul>
+<li><strong>Block Height</strong>: Current Bitcoin testnet block height</li>
+<li><strong>Network Status</strong>: Connection health to BTC testnet</li>
+<li><strong>API Reliability</strong>: Dual-API approach for resilience</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="api-endpoints">API Endpoints<a href="#api-endpoints" class="hash-link" aria-label="Direct link to API Endpoints" title="Direct link to API Endpoints">​</a></h4>
+<ul>
+<li><strong>Primary</strong>: mempool.space/testnet/api</li>
+<li><strong>Fallback</strong>: blockstream.info/testnet/api</li>
+<li><strong>Timeout</strong>: 5-second timeout per API</li>
+<li><strong>Caching</strong>: 10-minute client-side cache</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="reliability-features">Reliability Features<a href="#reliability-features" class="hash-link" aria-label="Direct link to Reliability Features" title="Direct link to Reliability Features">​</a></h3>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="dual-api-system">Dual-API System<a href="#dual-api-system" class="hash-link" aria-label="Direct link to Dual-API System" title="Direct link to Dual-API System">​</a></h4>
+<ol>
+<li><strong>Primary Attempt</strong>: Try mempool.space first</li>
+<li><strong>Automatic Fallback</strong>: Switch to blockstream.info on failure</li>
+<li><strong>Status Display</strong>: Shows which API is currently active</li>
+<li><strong>Performance Tracking</strong>: Monitors response times</li>
+</ol>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="client-side-caching">Client-Side Caching<a href="#client-side-caching" class="hash-link" aria-label="Direct link to Client-Side Caching" title="Direct link to Client-Side Caching">​</a></h4>
+<ul>
+<li><strong>Cache Duration</strong>: 10 minutes for block height data</li>
+<li><strong>Fallback Display</strong>: Shows cached data with age indicator</li>
+<li><strong>Automatic Refresh</strong>: Attempts to refresh every 30 seconds</li>
+<li><strong>Resilience</strong>: Maintains functionality during API outages</li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_uqyz" id="operational-procedures">Operational Procedures<a href="#operational-procedures" class="hash-link" aria-label="Direct link to Operational Procedures" title="Direct link to Operational Procedures">​</a></h2>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="daily-operations-checklist">Daily Operations Checklist<a href="#daily-operations-checklist" class="hash-link" aria-label="Direct link to Daily Operations Checklist" title="Direct link to Daily Operations Checklist">​</a></h3>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="morning-health-check">Morning Health Check<a href="#morning-health-check" class="hash-link" aria-label="Direct link to Morning Health Check" title="Direct link to Morning Health Check">​</a></h4>
+<ol>
+<li><strong>Access Operations Console</strong>: Navigate to <code>/ops</code> in Aigent Z</li>
+<li><strong>Verify Network Status</strong>: All cards should show green indicators</li>
+<li><strong>Check Response Times</strong>: Should be &lt; 2 seconds for all services</li>
+<li><strong>Review Error Logs</strong>: Check browser console for any issues</li>
+<li><strong>Test Transaction Flow</strong>: Create and monitor a test transaction</li>
+</ol>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="transaction-monitoring-1">Transaction Monitoring<a href="#transaction-monitoring-1" class="hash-link" aria-label="Direct link to Transaction Monitoring" title="Direct link to Transaction Monitoring">​</a></h4>
+<ol>
+<li><strong>Create Test Transaction</strong>: Use MetaMask integration</li>
+<li><strong>Verify DVN Monitoring</strong>: Confirm transaction appears in DVN card</li>
+<li><strong>Check Status Updates</strong>: Monitor confirmation progress</li>
+<li><strong>Validate Persistence</strong>: Refresh page and verify transaction remains</li>
+<li><strong>Review Explorer Links</strong>: Verify external explorer integration</li>
+</ol>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="troubleshooting-procedures">Troubleshooting Procedures<a href="#troubleshooting-procedures" class="hash-link" aria-label="Direct link to Troubleshooting Procedures" title="Direct link to Troubleshooting Procedures">​</a></h3>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="dvn-monitoring-issues">DVN Monitoring Issues<a href="#dvn-monitoring-issues" class="hash-link" aria-label="Direct link to DVN Monitoring Issues" title="Direct link to DVN Monitoring Issues">​</a></h4>
+<p><strong>Symptom</strong>: DVN monitoring fails or shows errors
+<strong>Diagnosis Steps</strong>:</p>
+<ol>
+<li>Check browser console for <code>canister_not_found</code> errors</li>
+<li>Verify transaction hash format and network selection</li>
+<li>Confirm MetaMask network matches selected network</li>
+<li>Test with known good transaction hash</li>
+</ol>
+<p><strong>Resolution</strong>:</p>
+<ul>
+<li>System automatically activates fallback mode</li>
+<li>Transaction tracking continues via direct RPC</li>
+<li>Status shows as <code>local:txHash</code> format</li>
+<li>Full functionality maintained</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="btc-testnet-connectivity-issues">BTC Testnet Connectivity Issues<a href="#btc-testnet-connectivity-issues" class="hash-link" aria-label="Direct link to BTC Testnet Connectivity Issues" title="Direct link to BTC Testnet Connectivity Issues">​</a></h4>
+<p><strong>Symptom</strong>: Block height shows &quot;—&quot; or red status
+<strong>Diagnosis Steps</strong>:</p>
+<ol>
+<li>Check both mempool.space and blockstream.info APIs</li>
+<li>Verify network connectivity</li>
+<li>Check for rate limiting or API quotas</li>
+<li>Review cached data age</li>
+</ol>
+<p><strong>Resolution</strong>:</p>
+<ul>
+<li>System automatically tries fallback API</li>
+<li>Cached data displayed with age indicator</li>
+<li>Manual refresh attempts new API calls</li>
+<li>Service recovers automatically when APIs available</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="anchor-functionality-issues">Anchor Functionality Issues<a href="#anchor-functionality-issues" class="hash-link" aria-label="Direct link to Anchor Functionality Issues" title="Direct link to Anchor Functionality Issues">​</a></h4>
+<p><strong>Symptom</strong>: &quot;Anchor functionality not yet implemented&quot; message
+<strong>Diagnosis</strong>: Expected behavior - canister needs redeployment
+<strong>Information Provided</strong>:</p>
+<ul>
+<li>Available methods: <code>get_batches</code>, <code>get_pending_count</code></li>
+<li>Missing methods: <code>issue_receipt</code>, <code>batch</code>, <code>anchor</code></li>
+<li>Canister ID and connectivity status</li>
+</ul>
+<p><strong>Next Steps</strong>:</p>
+<ul>
+<li>Monitor for canister redeployment updates</li>
+<li>Use diagnostic information for development planning</li>
+<li>Continue monitoring other system components</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="performance-monitoring">Performance Monitoring<a href="#performance-monitoring" class="hash-link" aria-label="Direct link to Performance Monitoring" title="Direct link to Performance Monitoring">​</a></h3>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="key-metrics">Key Metrics<a href="#key-metrics" class="hash-link" aria-label="Direct link to Key Metrics" title="Direct link to Key Metrics">​</a></h4>
+<ul>
+<li><strong>Page Load Time</strong>: &lt; 3 seconds for Operations Console</li>
+<li><strong>Network Updates</strong>: 30-second refresh intervals</li>
+<li><strong>Fallback Activation</strong>: &lt; 5 seconds when primary services fail</li>
+<li><strong>Transaction Confirmation</strong>: 1-3 minutes depending on network</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="performance-optimization">Performance Optimization<a href="#performance-optimization" class="hash-link" aria-label="Direct link to Performance Optimization" title="Direct link to Performance Optimization">​</a></h4>
+<ul>
+<li><strong>Parallel API Calls</strong>: Multiple network status checks run concurrently</li>
+<li><strong>Efficient Caching</strong>: Minimize redundant API calls</li>
+<li><strong>Graceful Degradation</strong>: Maintain functionality during service issues</li>
+<li><strong>User Feedback</strong>: Clear indication of system status and limitations</li>
+</ul>
+<h2 class="anchor anchorWithStickyNavbar_uqyz" id="future-enhancements">Future Enhancements<a href="#future-enhancements" class="hash-link" aria-label="Direct link to Future Enhancements" title="Direct link to Future Enhancements">​</a></h2>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="planned-improvements">Planned Improvements<a href="#planned-improvements" class="hash-link" aria-label="Direct link to Planned Improvements" title="Direct link to Planned Improvements">​</a></h3>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="phase-1-infrastructure-fixes">Phase 1: Infrastructure Fixes<a href="#phase-1-infrastructure-fixes" class="hash-link" aria-label="Direct link to Phase 1: Infrastructure Fixes" title="Direct link to Phase 1: Infrastructure Fixes">​</a></h4>
+<ul>
+<li><strong>DVN Canister Redeployment</strong>: Fix dependency canister IDs</li>
+<li><strong>Anchor Method Implementation</strong>: Deploy full anchor functionality</li>
+<li><strong>Enhanced Error Handling</strong>: Improved error messages and recovery</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="phase-2-feature-enhancements">Phase 2: Feature Enhancements<a href="#phase-2-feature-enhancements" class="hash-link" aria-label="Direct link to Phase 2: Feature Enhancements" title="Direct link to Phase 2: Feature Enhancements">​</a></h4>
+<ul>
+<li><strong>Transaction History</strong>: Persistent transaction tracking</li>
+<li><strong>Advanced Analytics</strong>: Performance metrics and trends</li>
+<li><strong>Automated Testing</strong>: Continuous system validation</li>
+<li><strong>Alert System</strong>: Proactive issue notification</li>
+</ul>
+<h4 class="anchor anchorWithStickyNavbar_uqyz" id="phase-3-scale-and-optimization">Phase 3: Scale and Optimization<a href="#phase-3-scale-and-optimization" class="hash-link" aria-label="Direct link to Phase 3: Scale and Optimization" title="Direct link to Phase 3: Scale and Optimization">​</a></h4>
+<ul>
+<li><strong>Multi-Chain Support</strong>: Additional blockchain networks</li>
+<li><strong>Performance Optimization</strong>: Faster response times</li>
+<li><strong>Advanced Monitoring</strong>: Comprehensive system observability</li>
+<li><strong>User Experience</strong>: Enhanced interface and workflows</li>
+</ul>
+<h3 class="anchor anchorWithStickyNavbar_uqyz" id="integration-roadmap">Integration Roadmap<a href="#integration-roadmap" class="hash-link" aria-label="Direct link to Integration Roadmap" title="Direct link to Integration Roadmap">​</a></h3>
+<ol>
+<li><strong>Immediate</strong>: Continue with fallback systems and diagnostics</li>
+<li><strong>Short-term</strong>: Fix canister dependencies and deploy updates</li>
+<li><strong>Medium-term</strong>: Implement full anchor workflow and enhanced monitoring</li>
+<li><strong>Long-term</strong>: Scale to additional networks and advanced features</li>
+</ol>
+<hr>
+<p><em>Cross-chain operations provide the foundation for iQube Protocol&#x27;s multi-blockchain functionality, with robust fallback systems ensuring continuous operation during infrastructure updates.</em></p></div><footer class="theme-doc-footer docusaurus-mt-lg"><div class="row margin-top--sm theme-doc-footer-edit-meta-row"><div class="col"><a href="https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/docs/system-operations/cross-chain-operations.md" target="_blank" rel="noopener noreferrer" class="theme-edit-this-page"><svg fill="currentColor" height="20" width="20" viewBox="0 0 40 40" class="iconEdit_fio8" aria-hidden="true"><g><path d="m34.5 11.7l-3 3.1-6.3-6.3 3.1-3q0.5-0.5 1.2-0.5t1.1 0.5l3.9 3.9q0.5 0.4 0.5 1.1t-0.5 1.2z m-29.5 17.1l18.4-18.5 6.3 6.3-18.4 18.4h-6.3v-6.2z"></path></g></svg>Edit this page</a></div><div class="col lastUpdated_U9li"></div></div></footer></article><nav class="docusaurus-mt-lg pagination-nav" aria-label="Docs pages"></nav></div></div><div class="col col--3"><div class="tableOfContents_blQZ thin-scrollbar theme-doc-toc-desktop"><ul class="table-of-contents table-of-contents__left-border"><li><a href="#overview" class="table-of-contents__link toc-highlight">Overview</a><ul><li><a href="#key-components" class="table-of-contents__link toc-highlight">Key Components</a></li></ul></li><li><a href="#evm-transaction-operations" class="table-of-contents__link toc-highlight">EVM Transaction Operations</a><ul><li><a href="#metamask-integration" class="table-of-contents__link toc-highlight">MetaMask Integration</a></li><li><a href="#manual-transaction-monitoring" class="table-of-contents__link toc-highlight">Manual Transaction Monitoring</a></li></ul></li><li><a href="#dvn-decentralized-verifier-network-operations" class="table-of-contents__link toc-highlight">DVN (Decentralized Verifier Network) Operations</a><ul><li><a href="#dvn-architecture" class="table-of-contents__link toc-highlight">DVN Architecture</a></li><li><a href="#dvn-monitoring-workflow" class="table-of-contents__link toc-highlight">DVN Monitoring Workflow</a></li><li><a href="#dvn-fallback-system" class="table-of-contents__link toc-highlight">DVN Fallback System</a></li></ul></li><li><a href="#btc-anchoring-operations" class="table-of-contents__link toc-highlight">BTC Anchoring Operations</a><ul><li><a href="#anchor-system-architecture" class="table-of-contents__link toc-highlight">Anchor System Architecture</a></li><li><a href="#anchor-workflow" class="table-of-contents__link toc-highlight">Anchor Workflow</a></li><li><a href="#anchor-diagnostics" class="table-of-contents__link toc-highlight">Anchor Diagnostics</a></li></ul></li><li><a href="#btc-testnet-integration" class="table-of-contents__link toc-highlight">BTC Testnet Integration</a><ul><li><a href="#network-monitoring" class="table-of-contents__link toc-highlight">Network Monitoring</a></li><li><a href="#reliability-features" class="table-of-contents__link toc-highlight">Reliability Features</a></li></ul></li><li><a href="#operational-procedures" class="table-of-contents__link toc-highlight">Operational Procedures</a><ul><li><a href="#daily-operations-checklist" class="table-of-contents__link toc-highlight">Daily Operations Checklist</a></li><li><a href="#troubleshooting-procedures" class="table-of-contents__link toc-highlight">Troubleshooting Procedures</a></li><li><a href="#performance-monitoring" class="table-of-contents__link toc-highlight">Performance Monitoring</a></li></ul></li><li><a href="#future-enhancements" class="table-of-contents__link toc-highlight">Future Enhancements</a><ul><li><a href="#planned-improvements" class="table-of-contents__link toc-highlight">Planned Improvements</a></li><li><a href="#integration-roadmap" class="table-of-contents__link toc-highlight">Integration Roadmap</a></li></ul></li></ul></div></div></div></div></main></div></div></div><footer class="theme-layout-footer footer footer--dark"><div class="container container-fluid"><div class="row footer__links"><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Docs</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/iQubeBeta-Program/docs/intro/">Tutorial</a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">Community</div><ul class="footer__items clean-list"><li class="footer__item"><a href="https://stackoverflow.com/questions/tagged/docusaurus" target="_blank" rel="noopener noreferrer" class="footer__link-item">Stack Overflow<svg width="13.5" height="13.5" aria-hidden="true" class="iconExternalLink_nIf2"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a href="https://discordapp.com/invite/docusaurus" target="_blank" rel="noopener noreferrer" class="footer__link-item">Discord<svg width="13.5" height="13.5" aria-hidden="true" class="iconExternalLink_nIf2"><use href="#theme-svg-external-link"></use></svg></a></li><li class="footer__item"><a href="https://x.com/docusaurus" target="_blank" rel="noopener noreferrer" class="footer__link-item">X<svg width="13.5" height="13.5" aria-hidden="true" class="iconExternalLink_nIf2"><use href="#theme-svg-external-link"></use></svg></a></li></ul></div><div class="theme-layout-footer-column col footer__col"><div class="footer__title">More</div><ul class="footer__items clean-list"><li class="footer__item"><a class="footer__link-item" href="/iQubeBeta-Program/blog/">Blog</a></li><li class="footer__item"><a href="https://github.com/facebook/docusaurus" target="_blank" rel="noopener noreferrer" class="footer__link-item">GitHub<svg width="13.5" height="13.5" aria-hidden="true" class="iconExternalLink_nIf2"><use href="#theme-svg-external-link"></use></svg></a></li></ul></div></div><div class="footer__bottom text--center"><div class="footer__copyright">Copyright © 2025 My Project, Inc. Built with Docusaurus.</div></div></div></footer></div>
+</body>
+</html>
