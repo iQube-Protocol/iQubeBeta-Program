@@ -138,12 +138,30 @@ Each monitored service displays comprehensive status information:
 - **Attestation Status**: Message verification and attestation progress
 - **EVM Transaction Monitoring**: Cross-chain transaction tracking
 - **ICP Receipt Generation**: Receipt creation for processed messages
+- **Fallback System**: Local RPC monitoring when canister unavailable
 
 #### Key Metrics
 - **Queue Length**: Number of pending messages
 - **Processing Time**: Average message processing duration
 - **Success Rate**: Percentage of successfully processed messages
 - **Error Rate**: Failed message processing percentage
+- **Fallback Activation**: Frequency of fallback system usage
+
+#### Current Status (September 2025)
+:::warning DVN Canister Dependencies
+The DVN canister currently experiences `canister_not_found` errors due to outdated dependency canister IDs. A comprehensive fallback system provides:
+
+- **Local RPC Monitoring**: Direct queries to Amoy/Sepolia RPC endpoints
+- **Transaction Tracking**: Maintains transaction status as `local:txHash` format
+- **Status Persistence**: Transaction data persists across page refreshes
+- **Seamless UX**: Users experience minimal disruption during fallback mode
+:::
+
+#### Fallback System Monitoring
+- **Activation Detection**: Automatic detection of canister failures
+- **RPC Health**: Direct monitoring of Ethereum/Polygon RPC endpoints
+- **Data Consistency**: Validation of fallback data against primary sources
+- **Recovery Tracking**: Monitoring for canister availability restoration
 
 ### Bitcoin Testnet Integration
 
@@ -152,12 +170,35 @@ Each monitored service displays comprehensive status information:
 - **Address Generation**: Bitcoin testnet address creation success
 - **Balance Monitoring**: Bitcoin testnet balance tracking
 - **Network Connectivity**: Bitcoin testnet node accessibility
+- **Dual-API Reliability**: Multiple endpoint monitoring for resilience
 
 #### Key Metrics
 - **Transaction Confirmation**: Average confirmation time
 - **Fee Estimation**: Current network fee rates
 - **UTXO Management**: Unspent transaction output tracking
 - **Signing Success**: Threshold signature success rate
+- **API Response Time**: Monitoring of mempool.space and blockstream.info
+- **Block Height Accuracy**: Real-time Bitcoin testnet block tracking
+
+#### Current Status (September 2025)
+:::info BTC Integration Reliability
+Bitcoin testnet integration features enhanced reliability through:
+
+- **Dual-API System**: Primary (mempool.space) with automatic fallback (blockstream.info)
+- **Client-Side Caching**: 10-minute cache for block height during API outages
+- **Timeout Management**: 5-second timeout per API with automatic failover
+- **Status Display**: Shows which API endpoint is currently active
+:::
+
+#### Anchor Functionality Status
+:::warning Anchor Methods Unavailable
+The proof_of_state canister currently has limited functionality:
+
+- **Available Methods**: `get_batches`, `get_pending_count` (query methods only)
+- **Missing Methods**: `issue_receipt`, `batch`, `anchor` (update methods required for anchoring)
+- **Current State**: Diagnostic mode with detailed error reporting
+- **Resolution**: Requires canister redeployment with full anchor functionality
+:::
 
 ## Performance Monitoring
 
