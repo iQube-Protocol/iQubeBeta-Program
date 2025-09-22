@@ -114,9 +114,9 @@ The protocol currently features **live testnet integration** with:
 
 ## Quick Start
 
-Ready to get started? Jump to our [Quick Start Guide](./getting-started/quick-start) to begin using the iQube Protocol in minutes.
+Ready to get started? Jump to our [Quick Start Guide](/iQubeBeta-Program/docs/getting-started/quick-start/) to begin using the iQube Protocol in minutes.
 
-For technical integration, see our [Integration Guide](./integration/icp-canisters) to connect with live canisters and blockchain networks.
+For technical integration, see our [Integration Guide](/iQubeBeta-Program/docs/integration/icp-canisters/) to connect with live canisters and blockchain networks.
 
 ---
 

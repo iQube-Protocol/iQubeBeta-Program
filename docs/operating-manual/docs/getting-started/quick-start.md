@@ -202,9 +202,9 @@ Public minting is irreversible. Once an iQube is minted as public, it cannot be 
 - **Activate Mode**: Use activation codes for special iQubes
 
 ### Learn More
-- **[iQube Operations Guide](../user-operations/iqube-operations)**: Detailed operational procedures
-- **[Network Ops Guide](../user-operations/network-ops)**: System monitoring and diagnostics
-- **[Architecture Overview](../architecture/overview)**: Technical system details
+- **[iQube Operations Guide](/iQubeBeta-Program/docs/user-operations/iqube-operations/)**: Detailed operational procedures
+- **[Network Ops Guide](/iQubeBeta-Program/docs/user-operations/network-ops/)**: System monitoring and diagnostics
+- **[Architecture Overview](/iQubeBeta-Program/docs/architecture/overview/)**: Technical system details
 
 ### Get Help
 - **Testing Dashboard**: Validate system health when issues occur
