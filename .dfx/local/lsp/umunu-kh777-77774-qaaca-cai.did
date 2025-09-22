@@ -13,6 +13,13 @@ type MerkleBatch = record {
   btc_block_height : opt nat64;
 };
 
+type BurnState = record {
+  receipt_id : text;
+  message_id : text;
+  burned : bool;
+  timestamp : nat64;
+};
+
 service : {
   issue_receipt : (text) -> (text);
   batch : () -> (text);
@@ -20,4 +27,8 @@ service : {
   get_receipt : (text) -> (opt Receipt) query;
   get_batches : () -> (vec MerkleBatch) query;
   get_pending_count : () -> (nat64) query;
+  get_last_anchor : () -> (opt text) query;
+  get_anchor_status : () -> (text) query;
+  set_burn_state : (text, text, bool) -> (text);
+  get_burn_state : (text) -> (opt BurnState) query;
 }

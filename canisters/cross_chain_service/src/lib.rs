@@ -147,7 +147,7 @@ pub async fn monitor_evm_transaction(
             r#"{{"jsonrpc":"2.0","method":"eth_getTransactionReceipt","params":["{}"],"id":1}}"#,
             tx_hash
         ).into_bytes()),
-        max_response_bytes: Some(2000),
+        max_response_bytes: Some(10000), // Increased to 10KB for JSON-RPC responses
         transform: None,
         headers: vec![
             HttpHeader {
@@ -213,7 +213,7 @@ pub async fn verify_layerzero_message(
         url: format!("{}/verify/{}", dvn_endpoint, message_hash),
         method: HttpMethod::GET,
         body: None,
-        max_response_bytes: Some(1000),
+        max_response_bytes: Some(5000), // Increased for DVN responses
         transform: None,
         headers: vec![],
     };
