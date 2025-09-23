@@ -1,21 +1,59 @@
 version: 1
 applications:
+  # 1. Docusaurus Documentation Site
   - appRoot: docs/operating-manual
     branch: docs
     frontend:
+      phases:
+        preBuild:
+          commands:
+            # This command pulls in the code for any submodules
+            - git submodule update --init --recursive
+            - npm ci
+        build:
+          commands:
+            - npm run build
+      artifacts:
+        baseDirectory: build
+        files:
+          - '**/*'
+      cache:
+        paths:
+          - node_modules/**/*
+
+  # 2. Aigent-Z Main Application
   - appRoot: apps/aigent-z
     branch: main
     frontend:
+      phases:
+        preBuild:
+          commands:
+            # This command pulls in the code for any submodules
+            - git submodule update --init --recursive
+            - npm ci
+        build:
+          commands:
+            - npm run build
+      artifacts:
+        baseDirectory: .next
+        files:
+          - '**/*'
+      cache:
+        paths:
+          - node_modules/**/*
+
+  # 3. Aigent-Z Staging Application
   - appRoot: apps/aigent-z
     branch: staging
     frontend:
       phases:
         preBuild:
           commands:
+            # This command pulls in the code for any submodules
+            - git submodule update --init --recursive
             - npm ci
         build:
           commands:
-            - echo "--- Checking tsconfig.json ---" && cat tsconfig.json && echo "--- End tsconfig.json ---"
             - npm run build
       artifacts:
         baseDirectory: .next
