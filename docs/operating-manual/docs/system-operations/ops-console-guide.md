@@ -1,5 +1,5 @@
 ---
-id: system-operations/ops-console-guide
+id: ops-console-guide
 title: Network Ops Console Guide
 sidebar_label: Ops Console Guide
 ---

@@ -1,5 +1,7 @@
 # iQube Beta Program
 
+[![Deploy Docusaurus Docs (Operating Manual)](https://github.com/iQube-Protocol/iQubeBeta-Program/actions/workflows/deploy-docs.yml/badge.svg)](https://github.com/iQube-Protocol/iQubeBeta-Program/actions/workflows/deploy-docs.yml)
+
 A complete monorepo for the iQube Protocol: ICP canisters, SDK packages, and production-ready frontends (Aigent Z, Ops Console, 21 Sats Market) with comprehensive operations documentation.
 
 ## Latest Documentation Release
@@ -27,8 +29,7 @@ npm start   # auto-kills port 3001, starts at http://localhost:3001
 
 ## CI/CD for Docs
 
-- `.github/workflows/docs-build.yml`: Builds docs on PRs and main, fails on MDX/Mermaid errors
-- `.github/workflows/docs-deploy.yml`: Builds and deploys to GitHub Pages on main
+- `.github/workflows/deploy-docs.yml`: Builds and deploys the Operating Manual to GitHub Pages on main
 
 ## Key Paths
 
@@ -42,3 +43,6 @@ npm start   # auto-kills port 3001, starts at http://localhost:3001
 - Repository: https://github.com/iQube-Protocol/iQubeBeta-Program
 - Docs Release: https://github.com/iQube-Protocol/iQubeBeta-Program/releases/tag/docs-ops-manual-mermaid-2025-09-20
 - Live Docs: https://iqube-protocol.github.io/iQubeBeta-Program/
+- Ops Console Architecture (repo): `docs/architecture/ops-console.md`
+- Ops Console Architecture (site): https://iqube-protocol.github.io/iQubeBeta-Program/docs/architecture/ops-console/
+- Ops Console Guide (site): https://iqube-protocol.github.io/iQubeBeta-Program/docs/system-operations/ops-console-guide/
