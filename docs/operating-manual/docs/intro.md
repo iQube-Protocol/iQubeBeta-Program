@@ -45,7 +45,9 @@ The protocol operates on a three-layer architectural model:
 ### Types
 1. **DataQube**: Alpha-numeric data representation
 2. **ContentQube**: Multi-modal content (blob) representation
-3. **AgentQube**: AI agent performance and compliance tracking
+3. **ToolQube**: Tools and workflows
+4. **ModelQube**: Machine learning models, neural networks
+5. **AgentQube**: AI agent performance and compliance tracking
 
 ## 🚀 Current Applications
 
