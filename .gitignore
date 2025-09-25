@@ -10,6 +10,7 @@ ops/env/.env.local
 ops/env/.env.stage
 ops/env/.env.prod
 ops/artifacts/
+backups/
 
 # Mac
 .DS_Store
@@ -18,6 +19,6 @@ ops/artifacts/
 .dfx/
 
 # Next.js build output
-.next/
+next/
 apps/*/.next/
 packages/*/.next/

@@ -4,6 +4,10 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use sha2::{Sha256, Digest};
 
+// Auto-batching threshold: when pending receipts reach this number,
+// the canister will automatically create a new batch.
+const PENDING_BATCH_THRESHOLD: u64 = 10;
+
 #[derive(CandidType, Deserialize)]
 pub struct UTXO {
     pub txid: String,
@@ -48,7 +52,12 @@ pub fn issue_receipt(data_hash: String) -> String {
     
     RECEIPTS.with(|r| r.borrow_mut().insert(receipt_id.clone(), receipt.clone()));
     PENDING_RECEIPTS.with(|p| p.borrow_mut().push(receipt));
-    
+    // Auto-batch when pending receipts reach threshold
+    let pending_after = get_pending_count();
+    if pending_after >= PENDING_BATCH_THRESHOLD {
+        let _ = batch();
+    }
+
     receipt_id
 }
 
@@ -83,6 +92,12 @@ pub fn batch() -> String {
     BATCHES.with(|b| b.borrow_mut().push(batch));
     
     root
+}
+
+// Manual alias for batching, useful for explicit UI action "Batch Now"
+#[update]
+pub fn batch_now() -> String {
+    batch()
 }
 
 #[update]
@@ -130,6 +145,18 @@ pub async fn anchor() -> String {
         }
         None => "No batches to anchor".to_string(),
     }
+}
+
+// Fast-track anchoring: if there are any pending receipts, batch them first,
+// then immediately anchor the latest batch. Intended for high-value assets.
+#[update]
+pub async fn fast_anchor() -> String {
+    // If there are any pending receipts, create a batch first
+    let pending = get_pending_count();
+    if pending > 0 {
+        let _ = batch();
+    }
+    anchor().await
 }
 
 #[derive(CandidType, Deserialize, Clone)]

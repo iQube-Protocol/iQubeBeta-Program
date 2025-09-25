@@ -1,10 +1,13 @@
-use candid::{CandidType, Deserialize};
-use ic_cdk::{query, update, api::management_canister::http_request::{
+use candid::{CandidType, Deserialize, Principal};
+use ic_cdk::{query, update, call, api::management_canister::http_request::{
     http_request, CanisterHttpRequestArgument, HttpHeader, HttpMethod,
 }};
 use ic_cdk_timers::{set_timer, TimerId};
 use std::collections::HashMap;
 use std::time::Duration;
+
+// Proof of State canister ID (should be configured via environment or init)
+const PROOF_OF_STATE_CANISTER_ID: &str = "umunu-kh777-77774-qaaca-cai";
 
 #[derive(CandidType, Deserialize, Clone)]
 pub struct DVNMessage {
@@ -175,12 +178,55 @@ pub async fn monitor_evm_transaction(
                 };
                 
                 TRANSACTIONS.with(|t| t.borrow_mut().insert(tx_id.clone(), transaction));
-                Ok(format!("Transaction {} confirmed", tx_hash))
+                
+                // Create a DVN message for the confirmed transaction
+                let message_id = format!("msg_{}", now_millis());
+                let receipt_id = format!("receipt_{}", now_millis());
+                let payload = format!(r#"{{"action":"MONITOR","txHash":"{}","chainId":{},"status":"confirmed","timestamp":{},"receiptId":"{}"}}"#, 
+                    tx_hash, chain_id, now_millis(), receipt_id);
+                
+                let dvn_message = DVNMessage {
+                    id: message_id.clone(),
+                    source_chain: chain_id,
+                    destination_chain: 0, // ICP
+                    payload: payload.into_bytes(),
+                    nonce: now_millis(),
+                    sender: format!("monitor_{}", chain_id),
+                    timestamp: now_millis(),
+                };
+                
+                DVN_MESSAGES.with(|m| m.borrow_mut().insert(message_id.clone(), dvn_message));
+                
+                // Create corresponding receipt in proof_of_state canister for synchronization
+                let data_hash = format!("tx_{}_{}", chain_id, tx_hash);
+                match create_proof_of_state_receipt(data_hash).await {
+                    Ok(receipt_id) => {
+                        Ok(format!("Transaction {} confirmed, added to DVN queue and receipt {} created", tx_hash, receipt_id))
+                    },
+                    Err(e) => {
+                        // DVN message was created but receipt failed - log warning but don't fail
+                        ic_cdk::println!("Warning: Failed to create proof-of-state receipt for {}: {}", tx_hash, e);
+                        Ok(format!("Transaction {} confirmed and added to DVN queue (receipt creation failed)", tx_hash))
+                    }
+                }
             } else {
                 Ok(format!("Transaction {} pending", tx_hash))
             }
         }
         Err(e) => Err(format!("Failed to check transaction: {:?}", e)),
+    }
+}
+
+// Helper function to create receipt in proof_of_state canister
+async fn create_proof_of_state_receipt(data_hash: String) -> Result<String, String> {
+    let canister_id = Principal::from_text(PROOF_OF_STATE_CANISTER_ID)
+        .map_err(|e| format!("Invalid canister ID: {}", e))?;
+    
+    let result: Result<(String,), _> = call(canister_id, "issue_receipt", (data_hash,)).await;
+    
+    match result {
+        Ok((receipt_id,)) => Ok(receipt_id),
+        Err((code, msg)) => Err(format!("Inter-canister call failed: {} - {}", code as u8, msg)),
     }
 }
 
