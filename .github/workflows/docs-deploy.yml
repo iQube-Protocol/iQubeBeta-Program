@@ -34,9 +34,17 @@ jobs:
         run: |
           npm ci || npm install
 
+      - name: Debug env
+        working-directory: ${{ env.BUILD_DIR }}
+        run: |
+          node -v
+          npm -v
+          ls -la
+          cat package.json
+
       - name: Build site
         working-directory: ${{ env.BUILD_DIR }}
-        run: npm run build
+        run: npx --yes @docusaurus/core@3.8.1 docusaurus build
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
