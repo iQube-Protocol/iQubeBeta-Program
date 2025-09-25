@@ -77,11 +77,56 @@ pub fn init_chain_configs() {
             native_token: "MATIC".to_string(),
         },
         EVMChainConfig {
-            chain_id: 80001,
-            name: "Mumbai Testnet".to_string(),
-            rpc_url: "https://rpc-mumbai.maticvigil.com".to_string(),
-            block_explorer: "https://mumbai.polygonscan.com".to_string(),
+            chain_id: 80002,
+            name: "Polygon Amoy Testnet".to_string(),
+            rpc_url: "https://rpc-amoy.polygon.technology".to_string(),
+            block_explorer: "https://amoy.polygonscan.com".to_string(),
             native_token: "MATIC".to_string(),
+        },
+        // Optimism chains
+        EVMChainConfig {
+            chain_id: 10,
+            name: "Optimism Mainnet".to_string(),
+            rpc_url: "https://mainnet.optimism.io".to_string(),
+            block_explorer: "https://optimistic.etherscan.io".to_string(),
+            native_token: "ETH".to_string(),
+        },
+        EVMChainConfig {
+            chain_id: 11155420,
+            name: "Optimism Sepolia".to_string(),
+            rpc_url: "https://sepolia.optimism.io".to_string(),
+            block_explorer: "https://sepolia-optimism.etherscan.io".to_string(),
+            native_token: "ETH".to_string(),
+        },
+        // Arbitrum chains
+        EVMChainConfig {
+            chain_id: 42161,
+            name: "Arbitrum One".to_string(),
+            rpc_url: "https://arb1.arbitrum.io/rpc".to_string(),
+            block_explorer: "https://arbiscan.io".to_string(),
+            native_token: "ETH".to_string(),
+        },
+        EVMChainConfig {
+            chain_id: 421614,
+            name: "Arbitrum Sepolia".to_string(),
+            rpc_url: "https://sepolia-rollup.arbitrum.io/rpc".to_string(),
+            block_explorer: "https://sepolia.arbiscan.io".to_string(),
+            native_token: "ETH".to_string(),
+        },
+        // Base chains
+        EVMChainConfig {
+            chain_id: 8453,
+            name: "Base Mainnet".to_string(),
+            rpc_url: "https://mainnet.base.org".to_string(),
+            block_explorer: "https://basescan.org".to_string(),
+            native_token: "ETH".to_string(),
+        },
+        EVMChainConfig {
+            chain_id: 84532,
+            name: "Base Sepolia".to_string(),
+            rpc_url: "https://sepolia.base.org".to_string(),
+            block_explorer: "https://sepolia.basescan.org".to_string(),
+            native_token: "ETH".to_string(),
         },
     ];
     
