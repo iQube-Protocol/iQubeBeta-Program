@@ -30,6 +30,14 @@ jobs:
         run: |
           npm ci || npm install
 
+      - name: Debug env
+        working-directory: docs/operating-manual
+        run: |
+          node -v
+          npm -v
+          ls -la
+          cat package.json
+
       - name: Build site (catch MDX/Mermaid errors)
         working-directory: docs/operating-manual
         run: npx --yes @docusaurus/core@3.8.1 docusaurus build
