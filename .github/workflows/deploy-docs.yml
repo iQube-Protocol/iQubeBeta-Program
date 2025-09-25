@@ -1,11 +1,7 @@
-name: Deploy Docusaurus Docs (Operating Manual)
+name: Deploy Docusaurus Docs (Operating Manual) [disabled]
 
 on:
-  push:
-    branches: [ main ]
-    paths:
-      - 'docs/operating-manual/**'
-      - '.github/workflows/deploy-docs.yml'
+  # Disable automatic triggers to avoid conflicting with official deploy-pages workflow
   workflow_dispatch:
 
 permissions:
@@ -13,34 +9,7 @@ permissions:
 
 jobs:
   build-and-deploy:
+    if: false  # disabled in favor of docs-deploy.yml (actions/deploy-pages)
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: docs/operating-manual
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Use Node.js 18
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
-          cache: 'npm'
-          cache-dependency-path: docs/operating-manual/package-lock.json
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build Docusaurus site
-        run: npm run build
-
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: docs/operating-manual/build
-          publish_branch: gh-pages
-          # Do not keep old files to avoid stale content
-          keep_files: false
+      - run: echo "This workflow is disabled. Use 'Deploy Operations Manual to GitHub Pages' instead."
