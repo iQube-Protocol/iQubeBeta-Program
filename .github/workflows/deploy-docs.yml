@@ -42,5 +42,5 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: docs/operating-manual/build
           publish_branch: gh-pages
-          # Keep history for easier debugging of deployed site
-          keep_files: true
+          # Do not keep old files to avoid stale content
+          keep_files: false
