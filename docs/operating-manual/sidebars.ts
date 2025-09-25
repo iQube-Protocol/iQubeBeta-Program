@@ -32,6 +32,7 @@ const sidebars: SidebarsConfig = {
       label: '🔧 System Operations',
       items: [
         'system-operations/monitoring',
+        'system-operations/ops-console-guide',
       ],
     },
     {
@@ -41,6 +42,7 @@ const sidebars: SidebarsConfig = {
         'architecture/overview',
         'architecture/system-overview',
         'architecture/technical-diagrams',
+        'architecture/ops-console',
       ],
     },
     {
