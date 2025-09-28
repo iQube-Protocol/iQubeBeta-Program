@@ -5,7 +5,15 @@ pnpm-lock.yaml
 # Rust
 target/
 
-# Env & artifacts
+# Environment files - NEVER commit these
+.env
+.env.local
+.env.development
+.env.production
+.env.staging
+.env.development.local
+.env.test.local
+.env.production.local
 ops/env/.env.local
 ops/env/.env.stage
 ops/env/.env.prod
