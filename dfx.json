@@ -41,6 +41,10 @@
     "ic": {
       "providers": ["https://ic0.app"],
       "type": "persistent"
+    },
+    "testnet": {
+      "providers": ["https://testnet.dfinity.network"],
+      "type": "persistent"
     }
   },
   "output_env_file": ".env"
