@@ -1,0 +1,135 @@
+name: IC Deploy (Staging)
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_pos:
+        description: "Deploy proof_of_state"
+        type: boolean
+        default: true
+      deploy_dvn:
+        description: "Deploy cross_chain_service (DVN)"
+        type: boolean
+        default: true
+      deploy_evm:
+        description: "Deploy evm_rpc"
+        type: boolean
+        default: true
+      deploy_btc:
+        description: "Deploy btc_signer_psbt"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      DFX_NETWORK: ic
+      DFX_IDENTITY: staging
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dfx SDK
+        shell: bash
+        run: |
+          curl -fsSL https://sdk.dfinity.org/install.sh | bash
+          echo "source "$HOME/.local/share/dfx/env"" >> $GITHUB_ENV
+          source "$HOME/.local/share/dfx/env"
+          dfx --version
+
+      - name: Configure dfx identity (staging)
+        shell: bash
+        env:
+          DFX_IDENTITY_PEM: ${{ secrets.DFX_IDENTITY_PEM }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.config/dfx/identity/staging"
+          chmod 700 "$HOME/.config/dfx/identity/staging"
+          printf "%s\n" "$DFX_IDENTITY_PEM" > "$HOME/.config/dfx/identity/staging/identity.pem"
+          chmod 600 "$HOME/.config/dfx/identity/staging/identity.pem"
+          source "$HOME/.local/share/dfx/env"
+          dfx identity list || true
+          dfx identity use staging
+          dfx identity whoami
+          dfx identity get-principal
+
+      - name: Check wallet balance (optional)
+        shell: bash
+        run: |
+          source "$HOME/.local/share/dfx/env"
+          dfx ping ic
+          dfx wallet --network ic balance || true
+
+      - name: Deploy selected canisters (staging)
+        if: ${{ github.event.inputs.deploy_pos == 'true' || github.event.inputs.deploy_dvn == 'true' || github.event.inputs.deploy_evm == 'true' || github.event.inputs.deploy_btc == 'true' }}
+        shell: bash
+        working-directory: .
+        run: |
+          set -euo pipefail
+          source "$HOME/.local/share/dfx/env"
+
+          # Helper to deploy a canister if requested
+          deploy_one() {
+            local name="$1"; local flag="$2"
+            if [ "$flag" = "true" ]; then
+              echo "::group::Deploy $name"
+              dfx canister create "$name" --network ic || true
+              dfx deploy "$name" --network ic
+              id=$(dfx canister id "$name" --network ic)
+              echo "$name=$id" | tee -a canister-ids-staging.env
+              echo "::endgroup::"
+            else
+              echo "Skip $name"
+            fi
+          }
+
+          deploy_one proof_of_state "${{ github.event.inputs.deploy_pos }}"
+          deploy_one cross_chain_service "${{ github.event.inputs.deploy_dvn }}"
+          deploy_one evm_rpc "${{ github.event.inputs.deploy_evm }}"
+          deploy_one btc_signer_psbt "${{ github.event.inputs.deploy_btc }}"
+
+          echo "Canister IDs written to canister-ids-staging.env"
+          cat canister-ids-staging.env
+
+      - name: Upload canister IDs artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: canister-ids-staging
+          path: canister-ids-staging.env
+          if-no-files-found: warn
+
+      - name: Print export hints
+        if: success()
+        shell: bash
+        run: |
+          if [ -f canister-ids-staging.env ]; then
+            echo "Add the following to your staging environment (server + NEXT_PUBLIC):"
+            while IFS='=' read -r k v; do
+              case "$k" in
+                proof_of_state)
+                  echo "PROOF_OF_STATE_CANISTER_ID=$v"
+                  echo "NEXT_PUBLIC_PROOF_OF_STATE_CANISTER_ID=$v"
+                  ;;
+                cross_chain_service)
+                  echo "CROSS_CHAIN_SERVICE_CANISTER_ID=$v"
+                  echo "NEXT_PUBLIC_CROSS_CHAIN_SERVICE_CANISTER_ID=$v"
+                  ;;
+                evm_rpc)
+                  echo "EVM_RPC_CANISTER_ID=$v"
+                  echo "NEXT_PUBLIC_EVM_RPC_CANISTER_ID=$v"
+                  ;;
+                btc_signer_psbt)
+                  echo "BTC_SIGNER_CANISTER_ID=$v"
+                  echo "NEXT_PUBLIC_BTC_SIGNER_CANISTER_ID=$v"
+                  ;;
+              esac
+            done < canister-ids-staging.env
+          else
+            echo "No canister-ids-staging.env generated."
+          fi
