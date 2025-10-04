@@ -71,7 +71,12 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies (root)
-        run: npm ci
+        run: |
+          if [ -f package.json ]; then
+            npm ci || npm install
+          else
+            echo "No package.json; skipping npm install"
+          fi
 
       - name: Build SDK packages
         run: |
@@ -166,12 +171,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install dfx SDK (dfxvm latest)
+      - name: Install dfx SDK (Linux tarball)
         shell: bash
         run: |
-          curl -fsSL https://sdk.dfinity.org/install.sh | bash
-          echo "source \"$HOME/Library/Application Support/org.dfinity.dfx/env\"" >> $GITHUB_ENV
-          source "$HOME/Library/Application Support/org.dfinity.dfx/env"
+          set -euo pipefail
+          DFX_VERSION=0.29.2
+          curl -fsSL -o dfx.tgz "https://github.com/dfinity/sdk/releases/download/${DFX_VERSION}/dfx-${DFX_VERSION}-x86_64-linux.tar.gz"
+          tar -xzf dfx.tgz
+          sudo mv dfx /usr/local/bin/dfx
           dfx --version
 
       - name: Import staging identity from PEM
@@ -188,7 +195,6 @@ jobs:
           chmod 700 "$HOME/.config/dfx/identity/staging"
           printf "%s\n" "$DFX_IDENTITY_PEM" > "$HOME/.config/dfx/identity/staging/identity.pem"
           chmod 600 "$HOME/.config/dfx/identity/staging/identity.pem"
-          source "$HOME/Library/Application Support/org.dfinity.dfx/env"
           dfx identity use staging
           dfx identity whoami
           dfx identity get-principal
@@ -199,7 +205,6 @@ jobs:
           CYCLES_WALLET_ID: ${{ secrets.CYCLES_WALLET_ID }}
         run: |
           set -euo pipefail
-          source "$HOME/Library/Application Support/org.dfinity.dfx/env"
           export DFX_WARNING=-mainnet_plaintext_identity
           if [ -n "${CYCLES_WALLET_ID:-}" ]; then
             echo "Setting wallet to ${CYCLES_WALLET_ID}"
@@ -214,7 +219,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          source "$HOME/Library/Application Support/org.dfinity.dfx/env"
           export DFX_WARNING=-mainnet_plaintext_identity
 
           deploy_one() {
