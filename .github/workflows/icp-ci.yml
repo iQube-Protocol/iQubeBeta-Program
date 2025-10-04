@@ -208,7 +208,7 @@ jobs:
           export DFX_WARNING=-mainnet_plaintext_identity
           if [ -n "${CYCLES_WALLET_ID:-}" ]; then
             echo "Setting wallet to ${CYCLES_WALLET_ID}"
-            dfx identity set-wallet --network ic "$CYCLES_WALLET_ID"
+            dfx identity set-wallet --network ic "$CYCLES_WALLET_ID" || true
           else
             echo "No CYCLES_WALLET_ID provided. Will rely on default wallet if configured."
           fi
@@ -217,6 +217,8 @@ jobs:
       - name: Deploy selected canisters to IC
         if: ${{ github.event.inputs.deploy_pos == 'true' || github.event.inputs.deploy_dvn == 'true' || github.event.inputs.deploy_evm == 'true' || github.event.inputs.deploy_btc == 'true' }}
         shell: bash
+        env:
+          CYCLES_WALLET_ID: ${{ secrets.CYCLES_WALLET_ID }}
         run: |
           set -euo pipefail
           export DFX_WARNING=-mainnet_plaintext_identity
@@ -225,8 +227,13 @@ jobs:
             local name="$1"; local flag="$2"
             if [ "$flag" = "true" ]; then
               echo "::group::Deploy $name"
-              dfx canister create "$name" --network ic || true
-              dfx deploy "$name" --network ic
+              if [ -n "${CYCLES_WALLET_ID:-}" ]; then
+                dfx canister create "$name" --network ic --wallet "$CYCLES_WALLET_ID" || true
+                dfx deploy "$name" --network ic --wallet "$CYCLES_WALLET_ID"
+              else
+                dfx canister create "$name" --network ic || true
+                dfx deploy "$name" --network ic
+              fi
               id=$(dfx canister id "$name" --network ic)
               echo "$name=$id" | tee -a canister-ids-staging.env
               echo "::endgroup::"
