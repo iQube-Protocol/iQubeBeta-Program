@@ -208,6 +208,8 @@ jobs:
           export DFX_WARNING=-mainnet_plaintext_identity
           if [ -n "${CYCLES_WALLET_ID:-}" ]; then
             echo "Setting wallet to ${CYCLES_WALLET_ID}"
+            # Ensure wallet canister has wallet WASM installed (if empty canister)
+            dfx identity deploy-wallet --network ic "$CYCLES_WALLET_ID" || true
             dfx identity set-wallet --network ic "$CYCLES_WALLET_ID" || true
           else
             echo "No CYCLES_WALLET_ID provided. Will rely on default wallet if configured."
