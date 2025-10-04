@@ -181,6 +181,12 @@ jobs:
           sudo mv dfx /usr/local/bin/dfx
           dfx --version
 
+      - name: Setup Rust with wasm32 target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.89.0
+          targets: wasm32-unknown-unknown
+
       - name: Import staging identity from PEM
         shell: bash
         env:
