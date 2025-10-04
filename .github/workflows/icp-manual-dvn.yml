@@ -1,0 +1,49 @@
+name: ICP Manual DVN Deploy
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch or tag
+        default: main
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      DFX_NETWORK: ic
+      DFX_IDENTITY: staging
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: ${{ github.event.inputs.ref || 'main' }} }
+      - name: Install dfx
+        run: |
+          DFX_VERSION=0.29.2
+          curl -fsSL -o dfx.tgz https://github.com/dfinity/sdk/releases/download/${DFX_VERSION}/dfx-${DFX_VERSION}-x86_64-linux.tar.gz
+          tar -xzf dfx.tgz && sudo mv dfx /usr/local/bin/dfx
+          dfx --version
+      - uses: dtolnay/rust-toolchain@stable
+        with: { toolchain: 1.89.0, targets: wasm32-unknown-unknown }
+      - name: Import identity
+        env: { DFX_IDENTITY_PEM: ${{ secrets.DFX_IDENTITY_PEM }} }
+        run: |
+          mkdir -p "$HOME/.config/dfx/identity/staging" && chmod 700 "$HOME/.config/dfx/identity/staging"
+          printf "%s\n" "$DFX_IDENTITY_PEM" > "$HOME/.config/dfx/identity/staging/identity.pem"
+          chmod 600 "$HOME/.config/dfx/identity/staging/identity.pem"
+          dfx identity use staging && dfx identity get-principal
+      - name: Configure wallet (optional)
+        env: { CYCLES_WALLET_ID: ${{ secrets.CYCLES_WALLET_ID }} }
+        run: |
+          export DFX_WARNING=-mainnet_plaintext_identity
+          if [ -n "${CYCLES_WALLET_ID:-}" ]; then
+            dfx identity deploy-wallet --network ic "$CYCLES_WALLET_ID" || true
+            dfx identity set-wallet --network ic "$CYCLES_WALLET_ID" || true
+          fi
+          dfx wallet --network ic balance || true
+      - name: Deploy DVN
+        run: |
+          export DFX_WARNING=-mainnet_plaintext_identity
+          dfx canister create cross_chain_service --network ic ${CYCLES_WALLET_ID:+--wallet "$CYCLES_WALLET_ID"} || true
+          dfx deploy cross_chain_service --network ic ${CYCLES_WALLET_ID:+--wallet "$CYCLES_WALLET_ID"}
+          id=$(dfx canister id cross_chain_service --network ic)
+          echo "cross_chain_service=$id" | tee canister-ids-staging.env
+      - uses: actions/upload-artifact@v4
+        with: { name: canister-ids-staging, path: canister-ids-staging.env }
