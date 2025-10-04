@@ -6,6 +6,7 @@ on:
   pull_request:
     branches: [ main ]
   workflow_dispatch:
+    # Manual dispatch inputs (ensure Run workflow button appears)
     inputs:
       deploy_pos:
         description: "Deploy proof_of_state to IC"
