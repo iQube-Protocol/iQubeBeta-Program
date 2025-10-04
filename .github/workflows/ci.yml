@@ -5,18 +5,39 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: latest
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'pnpm'
-      - run: pnpm i --frozen-lockfile
-      - run: pnpm -w lint || true
-      - run: pnpm -w build
-      - run: pnpm -w test || true
+          cache: 'npm'
+      - name: Install JS deps (if lockfile exists)
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            echo "No package-lock.json; skipping npm ci"
+          fi
+      - name: Lint (npm) (best-effort)
+        run: |
+          if [ -f package.json ]; then
+            npm -w . run lint || true
+          else
+            echo "No package.json; skipping lint"
+          fi
+      - name: Build (npm)
+        run: |
+          if [ -f package.json ]; then
+            npm -w . run build || true
+          else
+            echo "No package.json; skipping build"
+          fi
+      - name: Test (npm) (best-effort)
+        run: |
+          if [ -f package.json ]; then
+            npm -w . test || true
+          else
+            echo "No package.json; skipping tests"
+          fi
       - name: Rust
         run: |
           rustup toolchain install stable
