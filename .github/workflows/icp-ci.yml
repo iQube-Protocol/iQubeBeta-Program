@@ -5,6 +5,24 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      deploy_pos:
+        description: "Deploy proof_of_state to IC"
+        type: boolean
+        default: true
+      deploy_dvn:
+        description: "Deploy cross_chain_service (DVN) to IC"
+        type: boolean
+        default: true
+      deploy_evm:
+        description: "Deploy evm_rpc to IC"
+        type: boolean
+        default: true
+      deploy_btc:
+        description: "Deploy btc_signer_psbt to IC"
+        type: boolean
+        default: true
 
 jobs:
   build-canisters:
@@ -136,6 +154,128 @@ jobs:
           
       - name: Stop replica
         run: dfx stop
+
+  deploy-ic-mainnet:
+    name: Deploy to IC (manual)
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    env:
+      DFX_NETWORK: ic
+      DFX_IDENTITY: staging
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dfx SDK (dfxvm latest)
+        shell: bash
+        run: |
+          curl -fsSL https://sdk.dfinity.org/install.sh | bash
+          echo "source \"$HOME/Library/Application Support/org.dfinity.dfx/env\"" >> $GITHUB_ENV
+          source "$HOME/Library/Application Support/org.dfinity.dfx/env"
+          dfx --version
+
+      - name: Import staging identity from PEM
+        shell: bash
+        env:
+          DFX_IDENTITY_PEM: ${{ secrets.DFX_IDENTITY_PEM }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DFX_IDENTITY_PEM:-}" ]; then
+            echo "DFX_IDENTITY_PEM secret is missing" >&2
+            exit 1
+          fi
+          mkdir -p "$HOME/.config/dfx/identity/staging"
+          chmod 700 "$HOME/.config/dfx/identity/staging"
+          printf "%s\n" "$DFX_IDENTITY_PEM" > "$HOME/.config/dfx/identity/staging/identity.pem"
+          chmod 600 "$HOME/.config/dfx/identity/staging/identity.pem"
+          source "$HOME/Library/Application Support/org.dfinity.dfx/env"
+          dfx identity use staging
+          dfx identity whoami
+          dfx identity get-principal
+
+      - name: Configure wallet (optional)
+        shell: bash
+        env:
+          CYCLES_WALLET_ID: ${{ secrets.CYCLES_WALLET_ID }}
+        run: |
+          set -euo pipefail
+          source "$HOME/Library/Application Support/org.dfinity.dfx/env"
+          export DFX_WARNING=-mainnet_plaintext_identity
+          if [ -n "${CYCLES_WALLET_ID:-}" ]; then
+            echo "Setting wallet to ${CYCLES_WALLET_ID}"
+            dfx identity set-wallet --network ic "$CYCLES_WALLET_ID"
+          else
+            echo "No CYCLES_WALLET_ID provided. Will rely on default wallet if configured."
+          fi
+          dfx wallet --network ic balance || true
+
+      - name: Deploy selected canisters to IC
+        if: ${{ github.event.inputs.deploy_pos == 'true' || github.event.inputs.deploy_dvn == 'true' || github.event.inputs.deploy_evm == 'true' || github.event.inputs.deploy_btc == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          source "$HOME/Library/Application Support/org.dfinity.dfx/env"
+          export DFX_WARNING=-mainnet_plaintext_identity
+
+          deploy_one() {
+            local name="$1"; local flag="$2"
+            if [ "$flag" = "true" ]; then
+              echo "::group::Deploy $name"
+              dfx canister create "$name" --network ic || true
+              dfx deploy "$name" --network ic
+              id=$(dfx canister id "$name" --network ic)
+              echo "$name=$id" | tee -a canister-ids-staging.env
+              echo "::endgroup::"
+            else
+              echo "Skip $name"
+            fi
+          }
+
+          deploy_one proof_of_state "${{ github.event.inputs.deploy_pos }}"
+          deploy_one cross_chain_service "${{ github.event.inputs.deploy_dvn }}"
+          deploy_one evm_rpc "${{ github.event.inputs.deploy_evm }}"
+          deploy_one btc_signer_psbt "${{ github.event.inputs.deploy_btc }}"
+
+          echo "Canister IDs written to canister-ids-staging.env"
+          cat canister-ids-staging.env
+
+      - name: Upload canister IDs artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: canister-ids-staging
+          path: canister-ids-staging.env
+          if-no-files-found: warn
+
+      - name: Export hints for staging env
+        if: success()
+        shell: bash
+        run: |
+          if [ -f canister-ids-staging.env ]; then
+            echo "Add the following to your staging environment (server + NEXT_PUBLIC):"
+            while IFS='=' read -r k v; do
+              case "$k" in
+                proof_of_state)
+                  echo "PROOF_OF_STATE_CANISTER_ID=$v"
+                  echo "NEXT_PUBLIC_PROOF_OF_STATE_CANISTER_ID=$v"
+                  ;;
+                cross_chain_service)
+                  echo "CROSS_CHAIN_SERVICE_CANISTER_ID=$v"
+                  echo "NEXT_PUBLIC_CROSS_CHAIN_SERVICE_CANISTER_ID=$v"
+                  ;;
+                evm_rpc)
+                  echo "EVM_RPC_CANISTER_ID=$v"
+                  echo "NEXT_PUBLIC_EVM_RPC_CANISTER_ID=$v"
+                  ;;
+                btc_signer_psbt)
+                  echo "BTC_SIGNER_CANISTER_ID=$v"
+                  echo "NEXT_PUBLIC_BTC_SIGNER_CANISTER_ID=$v"
+                  ;;
+              esac
+            done < canister-ids-staging.env
+          else
+            echo "No canister-ids-staging.env generated."
+          fi
 
   e2e-cross-chain:
     name: "E2E Cross-Chain DVN (dfx local)"
