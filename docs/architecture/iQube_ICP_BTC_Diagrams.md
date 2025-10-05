@@ -109,18 +109,92 @@ flowchart LR
 
 ---
 
-## 3) Plugin Architecture - CrossChainService
+## 3) Hybrid DVN Architecture - CrossChainService
 
 ```mermaid
-flowchart LR
-  XCS[CrossChainService]
-  LZ[LayerZeroAdapter]
-  BTC[BTCAdapter]
-  TAC[TachiAdapter]
+flowchart TB
+  subgraph ROUTING[Dynamic Routing Layer]
+    ROUTER[Smart Router]
+    THRESH[Threshold Engine]
+    FLAGS[Feature Flags]
+  end
 
-  XCS-->LZ
-  XCS-->BTC
-  XCS-->TAC
+  subgraph SERVER[Next.js Server Layer - Low Cost]
+    BTC_SERVER[Bitcoin Testnet Ops]
+    VALIDATION[Message Validation]
+    MONITORING[Transaction Monitoring]
+  end
+
+  subgraph CANISTER[ICP Canister Layer - High Security]
+    XCS[CrossChainService]
+    DVN[LayerZero DVN]
+    BTC_SIGNER[BTC Signer tECDSA]
+    EVM_RPC[EVM RPC]
+  end
+
+  subgraph EXTERNAL[External Networks]
+    LZ_NET[LayerZero Network]
+    BTC_NET[Bitcoin Network]
+    EVM_NET[EVM Chains]
+  end
+
+  ROUTER --> THRESH
+  THRESH --> FLAGS
+  FLAGS --> SERVER
+  FLAGS --> CANISTER
+  
+  SERVER --> BTC_NET
+  SERVER --> VALIDATION
+  SERVER --> MONITORING
+  
+  XCS --> DVN
+  XCS --> BTC_SIGNER
+  XCS --> EVM_RPC
+  
+  DVN <--> LZ_NET
+  BTC_SIGNER --> BTC_NET
+  EVM_RPC <--> EVM_NET
+
+  classDef serverLayer fill:#e1f5fe
+  classDef canisterLayer fill:#f3e5f5
+  classDef routingLayer fill:#fff3e0
+  
+  class SERVER,BTC_SERVER,VALIDATION,MONITORING serverLayer
+  class CANISTER,XCS,DVN,BTC_SIGNER,EVM_RPC canisterLayer
+  class ROUTING,ROUTER,THRESH,FLAGS routingLayer
+```
+
+### Hybrid DVN Routing Decision Flow
+
+```mermaid
+flowchart TD
+  START[Transaction Request] --> ASSESS[Risk Assessment]
+  ASSESS --> VALUE{Value > Threshold?}
+  VALUE -->|Yes| SECURITY{Security Level Required?}
+  VALUE -->|No| COST{Cost Optimization?}
+  
+  SECURITY -->|High| CANISTER[Route to IC Canister]
+  SECURITY -->|Medium| GOVERNANCE{Governance Override?}
+  
+  COST -->|Yes| SERVER[Route to Next.js Server]
+  COST -->|No| CANISTER
+  
+  GOVERNANCE -->|Yes| CANISTER
+  GOVERNANCE -->|No| SERVER
+  
+  CANISTER --> IC_OPS[IC Canister Operations]
+  SERVER --> SERVER_OPS[Server-Side Operations]
+  
+  IC_OPS --> RESULT[90% Secure, High Cost]
+  SERVER_OPS --> RESULT2[90% Cost Savings, Good Security]
+  
+  classDef decision fill:#fff3e0
+  classDef canisterPath fill:#f3e5f5
+  classDef serverPath fill:#e1f5fe
+  
+  class VALUE,SECURITY,COST,GOVERNANCE decision
+  class CANISTER,IC_OPS,RESULT canisterPath
+  class SERVER,SERVER_OPS,RESULT2 serverPath
 ```
 
 ---
@@ -231,7 +305,38 @@ sequenceDiagram
 
 ---
 
-## 7) Sequence — EVM↔EVM via LayerZero DVN (on ICP)
+## 7) Sequence — Hybrid DVN Operation Flow
+
+```mermaid
+sequenceDiagram
+  participant UI as User Interface
+  participant ROUTER as Smart Router
+  participant SERVER as Next.js Server
+  participant CANISTER as IC Canister
+  participant DVN as LayerZero DVN
+  participant BTC as Bitcoin Network
+
+  UI->>ROUTER: submit_transaction(value, type)
+  ROUTER->>ROUTER: assess_risk(value, type)
+  
+  alt Low Risk / Cost Optimized
+    ROUTER->>SERVER: route_to_server()
+    SERVER->>BTC: bitcoin_testnet_ops()
+    SERVER->>SERVER: validate_message()
+    SERVER->>UI: response(90% cost savings)
+  else High Risk / High Security
+    ROUTER->>CANISTER: route_to_canister()
+    CANISTER->>DVN: submit_dvn_message()
+    DVN->>DVN: attestation_1()
+    DVN->>DVN: attestation_2()
+    DVN->>CANISTER: quorum_reached()
+    CANISTER->>UI: response(maximum security)
+  end
+  
+  Note over ROUTER: Dynamic routing based on<br/>value thresholds and<br/>governance settings
+```
+
+## 8) Sequence — EVM↔EVM via LayerZero DVN (on ICP)
 
 ```mermaid
 sequenceDiagram
