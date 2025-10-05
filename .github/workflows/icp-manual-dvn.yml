@@ -4,6 +4,10 @@ on:
     inputs:
       ref:
         description: Branch or tag
+<<<<<<< HEAD
+=======
+        required: false
+>>>>>>> staging
         default: main
 jobs:
   deploy:
@@ -13,6 +17,7 @@ jobs:
       DFX_IDENTITY: staging
     steps:
       - uses: actions/checkout@v4
+<<<<<<< HEAD
         with: { ref: ${{ github.event.inputs.ref || 'main' }} }
       - name: Install dfx
         run: |
@@ -32,12 +37,54 @@ jobs:
       - name: Configure wallet (optional)
         env: { CYCLES_WALLET_ID: ${{ secrets.CYCLES_WALLET_ID }} }
         run: |
+=======
+        with:
+          ref: ${{ github.event.inputs.ref }}
+
+      - name: Install dfx
+        run: |
+          set -e
+          DFX_VERSION=0.29.2
+          curl -fsSL -o dfx.tgz "https://github.com/dfinity/sdk/releases/download/${DFX_VERSION}/dfx-${DFX_VERSION}-x86_64-linux.tar.gz"
+          tar -xzf dfx.tgz
+          sudo mv dfx /usr/local/bin/dfx
+          dfx --version
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.89.0"
+          targets: "wasm32-unknown-unknown"
+
+      - name: Import staging identity
+        env:
+          DFX_IDENTITY_PEM: ${{ secrets.DFX_IDENTITY_PEM }}
+        run: |
+          set -e
+          if [ -z "${DFX_IDENTITY_PEM:-}" ]; then
+            echo "DFX_IDENTITY_PEM secret is missing" >&2
+            exit 1
+          fi
+          mkdir -p "$HOME/.config/dfx/identity/staging"
+          chmod 700 "$HOME/.config/dfx/identity/staging"
+          printf "%s\n" "$DFX_IDENTITY_PEM" > "$HOME/.config/dfx/identity/staging/identity.pem"
+          chmod 600 "$HOME/.config/dfx/identity/staging/identity.pem"
+          dfx identity use staging
+          dfx identity get-principal
+
+      - name: Configure wallet (optional)
+        env:
+          CYCLES_WALLET_ID: ${{ secrets.CYCLES_WALLET_ID }}
+        run: |
+          set -e
+>>>>>>> staging
           export DFX_WARNING=-mainnet_plaintext_identity
           if [ -n "${CYCLES_WALLET_ID:-}" ]; then
             dfx identity deploy-wallet --network ic "$CYCLES_WALLET_ID" || true
             dfx identity set-wallet --network ic "$CYCLES_WALLET_ID" || true
           fi
           dfx wallet --network ic balance || true
+<<<<<<< HEAD
       - name: Deploy DVN
         run: |
           export DFX_WARNING=-mainnet_plaintext_identity
@@ -47,3 +94,28 @@ jobs:
           echo "cross_chain_service=$id" | tee canister-ids-staging.env
       - uses: actions/upload-artifact@v4
         with: { name: canister-ids-staging, path: canister-ids-staging.env }
+=======
+
+      - name: Deploy DVN only
+        env:
+          CYCLES_WALLET_ID: ${{ secrets.CYCLES_WALLET_ID }}
+        run: |
+          set -e
+          export DFX_WARNING=-mainnet_plaintext_identity
+          if [ -n "${CYCLES_WALLET_ID:-}" ]; then
+            dfx canister create cross_chain_service --network ic --wallet "$CYCLES_WALLET_ID" || true
+            dfx deploy cross_chain_service --network ic --wallet "$CYCLES_WALLET_ID"
+          else
+            dfx canister create cross_chain_service --network ic || true
+            dfx deploy cross_chain_service --network ic
+          fi
+          id=$(dfx canister id cross_chain_service --network ic)
+          echo "cross_chain_service=$id" | tee canister-ids-staging.env
+
+      - name: Upload canister IDs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: canister-ids-staging
+          path: canister-ids-staging.env
+          if-no-files-found: error
+>>>>>>> staging

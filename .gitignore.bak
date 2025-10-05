@@ -6,10 +6,7 @@ pnpm-lock.yaml
 target/
 
 # Environment files - NEVER commit these
-<<<<<<< HEAD
 .env
-=======
->>>>>>> staging
 .env.local
 .env.development
 .env.production
@@ -33,4 +30,3 @@ backups/
 next/
 apps/*/.next/
 packages/*/.next/
-.env

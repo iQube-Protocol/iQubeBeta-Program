@@ -1,12 +1,14 @@
 version: 1
 applications:
-  # Docusaurus Site Deployment
+  # 1. Docusaurus Documentation Site
   - appRoot: docs/operating-manual
     branch: docs
     frontend:
       phases:
         preBuild:
           commands:
+            # This command pulls in the code for any submodules
+            - git submodule update --init --recursive
             - npm ci
         build:
           commands:
@@ -19,13 +21,15 @@ applications:
         paths:
           - node_modules/**/*
 
-  # Aigent-Z Main Deployment
+  # 2. Aigent-Z Main Application
   - appRoot: apps/aigent-z
     branch: main
     frontend:
       phases:
         preBuild:
           commands:
+            # This command pulls in the code for any submodules
+            - git submodule update --init --recursive
             - npm ci
         build:
           commands:
@@ -38,13 +42,15 @@ applications:
         paths:
           - node_modules/**/*
 
-  # Aigent-Z Staging Deployment
+  # 3. Aigent-Z Staging Application
   - appRoot: apps/aigent-z
     branch: staging
     frontend:
       phases:
         preBuild:
           commands:
+            # This command pulls in the code for any submodules
+            - git submodule update --init --recursive
             - npm ci
         build:
           commands:
@@ -55,4 +61,4 @@ applications:
           - '**/*'
       cache:
         paths:
-          - node_modules/**/*
+          - 'node_modules/**/*'
