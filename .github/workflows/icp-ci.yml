@@ -303,13 +303,19 @@ jobs:
         run: |
           set -euo pipefail
           export DFX_WARNING=-mainnet_plaintext_identity
-          if [ -n "${CYCLES_WALLET_ID:-}" ]; then
-            dfx canister create cross_chain_service --network ic --wallet "$CYCLES_WALLET_ID" || true
-            dfx deploy cross_chain_service --network ic --wallet "$CYCLES_WALLET_ID"
-          else
-            dfx canister create cross_chain_service --network ic || true
-            dfx deploy cross_chain_service --network ic
-          fi
+          # Try without wallet first (uses identity cycles)
+          echo "Attempting deployment without wallet..."
+          dfx canister create cross_chain_service --network ic || {
+            echo "Failed without wallet, trying with wallet..."
+            if [ -n "${CYCLES_WALLET_ID:-}" ]; then
+              dfx canister create cross_chain_service --network ic --wallet "$CYCLES_WALLET_ID" || true
+            else
+              echo "No wallet available, deployment failed"
+              exit 1
+            fi
+          }
+          echo "Deploying canister..."
+          dfx deploy cross_chain_service --network ic
           id=$(dfx canister id cross_chain_service --network ic)
           echo "cross_chain_service=$id" | tee canister-ids-staging.env
 
