@@ -1,0 +1,14 @@
+# AWS Amplify Deployment Trigger
+# This file is used to trigger new deployments when AWS Amplify doesn't detect latest commits
+
+Deployment triggered: 2025-10-05T11:39:07-04:00
+Reason: Force sync of latest commits including Supabase fixes
+Latest commits to deploy:
+- a88bc3a: Supabase configuration with fallback logic
+- d173ce2: Firefox compatibility for LayerZero message processing  
+- cd7039b: DVN canister connectivity resolution documentation
+
+Expected fixes:
+- Registry "Supabase env not configured" error resolved
+- Firefox LayerZero processing UI updates working
+- Complete DVN functionality operational
