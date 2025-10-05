@@ -1,4 +1,4 @@
-type EVMChainConfig = record {
+type yEVMChainConfig = record {
   chain_id : nat32;
   name : text;
   rpc_url : text;
