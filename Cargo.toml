@@ -5,7 +5,8 @@ members = [
     "canisters/btc_signer_psbt", 
     "canisters/cross_chain_service",
     "canisters/evm_rpc",
-    "canisters/solana_signer_ed25519"
+    "canisters/solana_signer_ed25519",
+    "canisters/reputation_qube"
 ]
 
 [workspace.dependencies]

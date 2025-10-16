@@ -31,6 +31,12 @@
       "package": "solana_signer_ed25519",
       "candid": "canisters/solana_signer_ed25519/solana_signer_ed25519.did",
       "build": ["cargo", "build", "--target", "wasm32-unknown-unknown", "--release", "-p", "solana_signer_ed25519"]
+    },
+    "reputation_qube": {
+      "type": "rust",
+      "package": "reputation_qube",
+      "candid": "canisters/reputation_qube/reputation_qube.did",
+      "build": ["cargo", "build", "--target", "wasm32-unknown-unknown", "--release", "-p", "reputation_qube"]
     }
   },
   "networks": {
