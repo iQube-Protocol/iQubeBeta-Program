@@ -22,11 +22,6 @@ type SignedTransaction = record {
   raw_tx : text;
 };
 service : (InitArg) -> {
-  // The full anchoring ceremony: fetch real UTXOs, build, sign, broadcast.
-  // 
-  // REFUSES rather than fabricating. The predecessor substituted a UTXO with an
-  // all-zero txid and proceeded — manufacturing the appearance of an anchor with
-  // nothing to spend.
   // THE ONLY AUTHORIZED ENTRY POINT (P0.1, independent review 2026-08-08).
   // 
   // `create_anchor_transaction`, `sign_transaction` and `broadcast_transaction`
@@ -46,6 +41,27 @@ service : (InitArg) -> {
   // proof_of_state principal, fail, and be "fixed" by whoever debugged it into
   // something that passes for everyone. Capturing first makes that mistake
   // impossible to make quietly.
+  // 
+  // ── SPEND SERIALISATION / IDEMPOTENCY (P0.3, operator ruling, 2026-08-08) ──
+  // 
+  // Immediately after authorization and BEFORE the first NETWORK await, this
+  // atomically decides and — if the decision is `Reserve` — records the
+  // reservation, in one synchronous `RefCell` borrow. IC message execution is
+  // atomic up to its first await, so no concurrent call can observe or act on
+  // this root between the decision and the insert: there is no window for a
+  // second caller to slip in.
+  // 
+  // `decide_anchor_attempt` (btc_anchor_core, pure, host-tested) owns every
+  // rule about what happens next: return the existing txid for an
+  // already-broadcast root, rebroadcast the exact existing transaction for an
+  // already-signed root without rebuilding it, refuse a different root while
+  // one is active, or clear to reserve. This function only APPLIES the
+  // decision — the rule that is tested is the rule that runs.
+  // 
+  // `Signed` is persisted BEFORE `bitcoin_send_transaction` is invoked for a
+  // fresh ceremony, so a canister trap, upgrade, or ambiguous resumption
+  // between signing and broadcast leaves durable evidence of exactly which
+  // transaction to rebroadcast — never a reason to sign a second one.
   create_and_broadcast_anchor : (text, nat64) -> (Result);
   get_address_info : (text) -> (opt BitcoinAddress) query;
   get_all_addresses : () -> (vec BitcoinAddress) query;

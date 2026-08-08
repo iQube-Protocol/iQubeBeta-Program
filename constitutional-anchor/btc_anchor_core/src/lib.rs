@@ -23,6 +23,7 @@
 //! normative: a verifier written from that section alone must reproduce these
 //! bytes.
 
+use candid::{CandidType, Deserialize};
 use sha2::{Digest, Sha256};
 use ripemd::Ripemd160;
 
@@ -95,10 +96,11 @@ pub fn varint(n: u64) -> Vec<u8> {
 /// discarded it (underscore-prefixed, never read), which is why no commitment
 /// ever reached Bitcoin.
 pub fn op_return_script(root_hex: &str) -> Result<Vec<u8>, String> {
-    let root = hex::decode(root_hex).map_err(|e| format!("root is not hex: {e}"))?;
-    if root.len() != 32 {
-        return Err(format!("root must be 32 bytes, got {}", root.len()));
-    }
+    // `normalize_root_hex` (P0.3) owns the "is this 32 raw bytes" validation —
+    // reused here rather than duplicated, so the anchor-attempt map's notion
+    // of a valid root and this function's never drift apart.
+    let canonical = normalize_root_hex(root_hex)?;
+    let root = hex::decode(&canonical).expect("normalize_root_hex guarantees valid, even-length hex");
     let mut script = Vec::with_capacity(34);
     script.push(0x6a); // OP_RETURN
     script.push(0x20); // OP_PUSHBYTES_32
@@ -385,7 +387,11 @@ pub fn assemble_signed(
 // ─── ANCHOR PLANNING — refusal logic, pure and host-testable ────────────────
 
 /// A candidate input, reduced to what planning needs.
-#[derive(Clone, Debug)]
+///
+/// `PartialEq, Eq` + `CandidType, Deserialize` (P0.3): this struct is embedded
+/// in `AnchorAttemptState::Signed` and must both compare for equality (tests)
+/// and survive a Candid encode/decode round trip (canister upgrades).
+#[derive(Clone, Debug, PartialEq, Eq, CandidType, Deserialize)]
 pub struct AnchorInput {
     pub txid_hex: String,
     pub vout: u32,
@@ -573,4 +579,146 @@ pub fn validate_anchor_config(cfg: &AnchorConfig) -> Result<(), String> {
         return Err("the anonymous principal may not be configured as the authorized caller".to_string());
     }
     Ok(())
+}
+
+// ─── ANCHOR ATTEMPT SERIALISATION — one active Bitcoin spend at a time ─────
+//
+// P0.3 (operator ruling, 2026-08-08): "Add a durable root-indexed anchor-
+// attempt state machine. Before the first network await, atomically reserve
+// the anchor ceremony. Permit only one active Bitcoin spend at a time... No
+// boolean-only lock that can strand silently after a callback failure; state
+// must identify the root and lifecycle."
+//
+// Lifecycle: Reserved(root) -> Signed(root, txid, raw_tx, inputs) ->
+// Broadcast(root, txid), with Failed(root, reason) reachable from Reserved
+// whenever the ceremony ends before a signed transaction exists.
+//
+// THIS MODULE OWNS ONLY THE DECISION — pure, host-testable, no storage and no
+// ic_cdk. `btc_signer_psbt` owns the actual root-indexed map and its
+// stable-memory persistence; it calls `decide_anchor_attempt` synchronously,
+// as the FIRST thing after authorization and BEFORE its first network
+// `.await`, and applies whichever decision comes back. IC message execution
+// is atomic up to that first await, which is what makes a plain
+// check-and-insert into a `RefCell`-guarded map an atomic reservation without
+// a separate lock primitive.
+
+/// One root's anchor attempt, at whatever point in its lifecycle it currently
+/// sits. `CandidType, Deserialize` so the canister can persist the whole map
+/// through `ic_cdk::storage::stable_save`/`stable_restore` — the same
+/// mechanism `InitArg` already uses — and so the evidence needed for recovery
+/// (the exact signed `raw_tx` and the inputs it spends) survives a canister
+/// upgrade rather than only living in heap memory.
+#[derive(Clone, Debug, PartialEq, Eq, CandidType, Deserialize)]
+pub enum AnchorAttemptState {
+    /// A ceremony has claimed this root and no other root may become active
+    /// until it resolves. Nothing has been signed or spent yet — a
+    /// `Reserved` entry with no further progress is exactly as safe to retry
+    /// as `Failed`.
+    Reserved,
+    /// A transaction has been built and signed for this root. `raw_tx` is the
+    /// exact bytes that must be (re)broadcast — a retry from this state must
+    /// NEVER fetch new UTXOs or construct a different spend, because doing so
+    /// while the first signed transaction might still confirm would risk a
+    /// double-spend of the same inputs.
+    Signed { txid: String, raw_tx: String, inputs: Vec<AnchorInput> },
+    /// The network accepted the transaction. Terminal and successful — any
+    /// further request for this root returns this txid and does nothing
+    /// else. The constitutional event already happened.
+    Broadcast { txid: String },
+    /// The ceremony ended before a signed transaction existed (no UTXOs,
+    /// signing itself failed, a transport error before broadcast). Terminal
+    /// for THIS attempt, but — unlike `Broadcast` — it releases the root: a
+    /// later request for the same root may reserve again and try fresh,
+    /// because nothing was ever spent under this state.
+    Failed { reason: String },
+}
+
+/// What the canister may do next, having asked `decide_anchor_attempt`. Pure
+/// data — applying it (making the reservation, rebroadcasting, or refusing)
+/// is the canister's job, not this function's.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum AnchorDecision {
+    /// No conflicting attempt exists. The caller may insert `Reserved` for
+    /// this root and proceed with a fresh ceremony.
+    Reserve,
+    /// This root already reached `Broadcast`. Return the existing txid;
+    /// spend nothing.
+    ReturnBroadcast(String),
+    /// This root already reached `Signed`. Rebroadcast `raw_tx` exactly as
+    /// stored; do not rebuild.
+    Rebroadcast { txid: String, raw_tx: String },
+    /// A DIFFERENT root currently holds an active (`Reserved` or `Signed`)
+    /// attempt. Refuse — only one Bitcoin spend ceremony may be active across
+    /// all roots at a time.
+    InProgress { active_root: String },
+}
+
+/// Canonicalise a 64-hex-char root to lowercase, validating it decodes to
+/// exactly 32 bytes. The attempt map is keyed on this canonical form so two
+/// differently-cased spellings of the same root — or a root with incidental
+/// leading/trailing whitespace stripped by hex parsing — are never treated as
+/// two distinct anchor attempts.
+pub fn normalize_root_hex(root_hex: &str) -> Result<String, String> {
+    let root = hex::decode(root_hex).map_err(|e| format!("root is not hex: {e}"))?;
+    if root.len() != 32 {
+        return Err(format!("root must be 32 bytes, got {}", root.len()));
+    }
+    Ok(hex::encode(root))
+}
+
+/// The P0.3 decision function.
+///
+/// SAME ROOT AS THE REQUEST:
+///   * `Broadcast(txid)` -> `ReturnBroadcast`. The event already happened; a
+///     retry must not spend again, silently or otherwise.
+///   * `Signed{..}` -> `Rebroadcast` with the EXACT existing `raw_tx`/`txid`.
+///     Never refetch UTXOs or build a second spend for a root that already
+///     has a valid signed transaction — that is how a root would end up with
+///     two competing spends of the same inputs.
+///   * `Reserved`, `Failed`, or no entry at all -> falls through to the
+///     cross-root check below. Nothing was ever spent under either state, so
+///     resuming from scratch is safe PROVIDED no other root is active.
+///
+/// ANY OTHER ROOT (checked only once the same-root cases above are ruled
+/// out): if it holds `Reserved` or `Signed` — anything short of `Broadcast`
+/// or `Failed` — the requested root gets `InProgress`. Only one ceremony may
+/// be active at a time, across every root, which is what "one active Bitcoin
+/// spend" means when spends share a UTXO set.
+pub fn decide_anchor_attempt(
+    root: &str,
+    attempts: &std::collections::BTreeMap<String, AnchorAttemptState>,
+) -> AnchorDecision {
+    if let Some(state) = attempts.get(root) {
+        match state {
+            AnchorAttemptState::Broadcast { txid } => return AnchorDecision::ReturnBroadcast(txid.clone()),
+            AnchorAttemptState::Signed { txid, raw_tx, .. } => {
+                return AnchorDecision::Rebroadcast { txid: txid.clone(), raw_tx: raw_tx.clone() };
+            }
+            AnchorAttemptState::Reserved | AnchorAttemptState::Failed { .. } => {
+                // Falls through to the cross-root exclusivity check below.
+            }
+        }
+    }
+    match attempts.iter().find(|(other_root, state)| {
+        other_root.as_str() != root
+            && matches!(state, AnchorAttemptState::Reserved | AnchorAttemptState::Signed { .. })
+    }) {
+        Some((other_root, _)) => AnchorDecision::InProgress { active_root: other_root.clone() },
+        None => AnchorDecision::Reserve,
+    }
+}
+
+/// Convert a millisatoshi/vB fee rate — the unit
+/// `bitcoin_get_current_fee_percentiles` reports — to satoshi/vB, ROUNDING UP.
+///
+/// Ceiling, never floor (P0.3, operator ruling, 2026-08-08): flooring a rate
+/// like 1999 msat/vB to 1 sat/vB understates what the network actually wants
+/// and risks a transaction that never confirms. `.max(1)` guards only the
+/// degenerate case of a zero input; `plan_anchor` independently refuses a zero
+/// `fee_rate` outright, so this guard's job is to never hand it one.
+pub fn msat_per_vb_to_sat_per_vb_ceil(msat_per_vb: u64) -> u64 {
+    // Manual ceiling division rather than `u64::div_ceil` — this crate has no
+    // MSRV pin that guarantees it, and the arithmetic is unambiguous either
+    // way.
+    ((msat_per_vb + 999) / 1000).max(1)
 }

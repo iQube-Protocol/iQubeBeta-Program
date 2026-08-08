@@ -609,6 +609,255 @@ fn transport_uses_the_current_bitcoin_api_not_the_deprecated_facade() {
     );
 }
 
+// ───────────────────────────────────────────────────────────────────────────
+// P0.3 — spend serialisation / idempotency (operator ruling, 2026-08-08)
+// ───────────────────────────────────────────────────────────────────────────
+//
+// WAS RED against the pre-serialisation baseline, where `create_and_broadcast_
+// anchor` had no attempt map at all: every one of these properties was simply
+// absent, because there was no `decide_anchor_attempt` to call and no state to
+// consult. A concurrent request for a different root proceeded straight into
+// `bitcoin_get_utxos`/sign/broadcast with no idea another spend might already
+// be in flight; a retry against an already-signed root re-fetched UTXOs and
+// built a second, distinct transaction; a retry against an already-broadcast
+// root re-signed and re-sent.
+
+use std::collections::BTreeMap;
+
+fn signed_state(txid: &str, raw_tx: &str) -> AnchorAttemptState {
+    AnchorAttemptState::Signed {
+        txid: txid.to_string(),
+        raw_tx: raw_tx.to_string(),
+        inputs: vec![AnchorInput { txid_hex: "aa".repeat(32), vout: 0, value: 100_000 }],
+    }
+}
+
+/// Two concurrent anchor attempts for DIFFERENT roots cannot both proceed —
+/// the second must be refused, naming which root is active, whether the first
+/// is merely `Reserved` or has already progressed to `Signed`.
+#[test]
+fn p03_concurrent_reservation_for_a_different_root_is_rejected() {
+    let mut attempts: BTreeMap<String, AnchorAttemptState> = BTreeMap::new();
+    attempts.insert("root-a".to_string(), AnchorAttemptState::Reserved);
+
+    assert_eq!(
+        decide_anchor_attempt("root-b", &attempts),
+        AnchorDecision::InProgress { active_root: "root-a".to_string() },
+        "a second root must never be allowed to reserve while another root's ceremony is merely Reserved"
+    );
+
+    // The same exclusion holds once the active root has progressed to Signed
+    // — an in-flight signed transaction is just as exclusive as a bare
+    // reservation, because it still has not been broadcast (and might yet
+    // need to be rebroadcast, spending the same inputs again).
+    attempts.insert("root-a".to_string(), signed_state("txid-a", "aa"));
+    assert_eq!(
+        decide_anchor_attempt("root-b", &attempts),
+        AnchorDecision::InProgress { active_root: "root-a".to_string() },
+        "an in-flight Signed attempt is exclusive too, not only a bare Reserved one"
+    );
+
+    // Once root-a reaches Broadcast (terminal, successful), it is no longer
+    // active, and root-b may reserve freely.
+    attempts.insert("root-a".to_string(), AnchorAttemptState::Broadcast { txid: "txid-a".to_string() });
+    assert_eq!(
+        decide_anchor_attempt("root-b", &attempts),
+        AnchorDecision::Reserve,
+        "a root that has reached Broadcast is no longer active and must not block a different root"
+    );
+}
+
+/// A retry against a root already at `Broadcast` must return the existing
+/// txid and never be silently replayed as a new spend, signature, or
+/// broadcast.
+#[test]
+fn p03_broadcast_is_never_silently_replayed() {
+    let mut attempts: BTreeMap<String, AnchorAttemptState> = BTreeMap::new();
+    attempts.insert("root-a".to_string(), AnchorAttemptState::Broadcast { txid: "abc123".to_string() });
+
+    let decision = decide_anchor_attempt("root-a", &attempts);
+    assert_eq!(
+        decision,
+        AnchorDecision::ReturnBroadcast("abc123".to_string()),
+        "a retry of an already-broadcast root must return the existing txid, never attempt another spend"
+    );
+    assert_ne!(decision, AnchorDecision::Reserve, "Broadcast must never be re-derived as a fresh reservation");
+}
+
+/// A retry against a root already at `Signed` must rebroadcast the EXACT
+/// existing transaction — never fetch new UTXOs or construct a second spend
+/// for the same root. This is the recovery path for "signing succeeded, then
+/// the canister's execution was interrupted (upgrade, trap, out-of-cycles)
+/// before the broadcast call resolved."
+#[test]
+fn p03_same_root_signed_resumes_by_rebroadcasting_never_builds_a_second_spend() {
+    let mut attempts: BTreeMap<String, AnchorAttemptState> = BTreeMap::new();
+    attempts.insert("root-a".to_string(), signed_state("txid-a", "deadbeef"));
+
+    let decision = decide_anchor_attempt("root-a", &attempts);
+    assert_eq!(
+        decision,
+        AnchorDecision::Rebroadcast { txid: "txid-a".to_string(), raw_tx: "deadbeef".to_string() },
+        "recovery from Signed must resume with the SAME raw_tx, never Reserve — Reserve would let the \
+         canister fetch a fresh UTXO set and build a distinct, competing spend for the same root"
+    );
+    // The one property that matters most, stated as its own assertion: this
+    // must never be Reserve, under any circumstance, for a Signed root.
+    assert_ne!(
+        decision,
+        AnchorDecision::Reserve,
+        "no duplicate transaction may ever be generated for a root that already has a signed one"
+    );
+}
+
+/// An unsuccessful PRE-broadcast attempt — no UTXOs, signing itself failed,
+/// anything that ends before a signed transaction exists — must record a
+/// truthful `Failed` state and permit a controlled retry. Nothing was ever
+/// spent under `Failed` (or a bare, stalled `Reserved`), so starting over is
+/// safe, unlike retrying from `Signed`.
+#[test]
+fn p03_a_failure_before_signing_permits_a_controlled_retry() {
+    let mut attempts: BTreeMap<String, AnchorAttemptState> = BTreeMap::new();
+    attempts.insert(
+        "root-a".to_string(),
+        AnchorAttemptState::Failed { reason: "No UTXOs at tb1q... — refusing to anchor".to_string() },
+    );
+    assert_eq!(
+        decide_anchor_attempt("root-a", &attempts),
+        AnchorDecision::Reserve,
+        "a root whose ceremony failed before a signed transaction existed must be retryable"
+    );
+
+    // A bare Reserved with no further progress — the ceremony was
+    // interrupted between reserving and signing — is the same case: nothing
+    // was spent, so resuming fresh is exactly as safe as Failed.
+    attempts.insert("root-a".to_string(), AnchorAttemptState::Reserved);
+    assert_eq!(
+        decide_anchor_attempt("root-a", &attempts),
+        AnchorDecision::Reserve,
+        "a stalled Reserved attempt with no Signed/Broadcast progress must not strand the root forever \
+         — this is the 'no boolean-only lock that can strand silently' requirement"
+    );
+
+    // And a failed attempt for ONE root must never block a DIFFERENT root —
+    // Failed releases exclusivity, unlike Reserved/Signed. Root-a is cleared
+    // to Broadcast first (not left Reserved from above) so THIS assertion
+    // tests Failed's non-exclusivity specifically, not a leftover active
+    // reservation from the previous checks.
+    attempts.insert("root-a".to_string(), AnchorAttemptState::Broadcast { txid: "txid-a".to_string() });
+    attempts.insert("root-b".to_string(), AnchorAttemptState::Failed { reason: "transport error".to_string() });
+    assert_eq!(
+        decide_anchor_attempt("root-c", &attempts),
+        AnchorDecision::Reserve,
+        "root-b's Failed state must not block root-c from reserving"
+    );
+}
+
+/// `AnchorAttemptState` — including the evidence needed for recovery, the
+/// exact signed `raw_tx` and the inputs it spends — must survive the SAME
+/// Candid encode/decode round trip that `ic_cdk::storage::stable_save`/
+/// `stable_restore` performs across a canister upgrade. This is the pure,
+/// host-testable half of "anchor-attempt state and the evidence needed for
+/// recovery must survive canister upgrades" — the stable-memory call itself
+/// needs a replica, but the encoding it depends on does not.
+#[test]
+fn p03_anchor_attempt_state_survives_a_stable_memory_round_trip() {
+    use candid::{Decode, Encode};
+
+    let states = vec![
+        AnchorAttemptState::Reserved,
+        signed_state("txid-a", "deadbeef"),
+        AnchorAttemptState::Broadcast { txid: "txid-b".to_string() },
+        AnchorAttemptState::Failed { reason: "bitcoin_get_utxos failed: transport error".to_string() },
+    ];
+
+    for state in states {
+        let bytes = Encode!(&state).expect("AnchorAttemptState must Candid-encode");
+        let round_tripped: AnchorAttemptState =
+            Decode!(&bytes, AnchorAttemptState).expect("AnchorAttemptState must Candid-decode");
+        assert_eq!(
+            round_tripped, state,
+            "anchor-attempt state must round-trip losslessly through the encoding \
+             ic_cdk::storage::stable_save/stable_restore uses across a canister upgrade"
+        );
+    }
+
+    // The whole map, keyed by root — the actual shape persisted — round-trips
+    // too, not only a single entry in isolation.
+    let mut attempts: BTreeMap<String, AnchorAttemptState> = BTreeMap::new();
+    attempts.insert("root-a".to_string(), AnchorAttemptState::Reserved);
+    attempts.insert("root-b".to_string(), signed_state("txid-b", "beefdead"));
+    let as_vec: Vec<(String, AnchorAttemptState)> = attempts.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
+    let bytes = Encode!(&as_vec).expect("the persisted Vec<(String, AnchorAttemptState)> shape must encode");
+    let round_tripped: Vec<(String, AnchorAttemptState)> =
+        Decode!(&bytes, Vec<(String, AnchorAttemptState)>).expect("must decode");
+    assert_eq!(round_tripped, as_vec);
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// P0.3 — fee-rate honesty (operator ruling, 2026-08-08)
+// ───────────────────────────────────────────────────────────────────────────
+
+/// WAS RED-in-spirit against `median_fee_rate().await.unwrap_or(2)`: a failed
+/// fee lookup silently became "2 sat/vB", a fee this function never computed
+/// and the network never reported. The removal itself lives in
+/// `btc_signer_psbt` (an `unwrap_or(2)` cannot exist in a pure, host-testable
+/// crate); what belongs here is the ceiling-not-floor conversion the
+/// replacement calls.
+#[test]
+fn p03_msat_per_vb_rounds_up_never_down() {
+    // 1999 msat/vB floors to 1 sat/vB but must ceil to 2 — flooring would
+    // understate the fee the network actually wants.
+    assert_eq!(msat_per_vb_to_sat_per_vb_ceil(1999), 2);
+    // An exact multiple of 1000 needs no rounding.
+    assert_eq!(msat_per_vb_to_sat_per_vb_ceil(2000), 2);
+    // One msat/vB over an exact multiple still rounds up to the next sat/vB.
+    assert_eq!(msat_per_vb_to_sat_per_vb_ceil(2001), 3);
+    // Zero input is guarded to the minimum valid fee rate, never zero —
+    // plan_anchor refuses a zero fee_rate outright, so this guard's job is to
+    // never hand it one.
+    assert_eq!(msat_per_vb_to_sat_per_vb_ceil(0), 1);
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// P0.3 — structural guarantee about the canister's own wiring
+// ───────────────────────────────────────────────────────────────────────────
+
+/// SIGNED MUST BE DURABLE BEFORE THE NETWORK IS ASKED TO BROADCAST IT.
+///
+/// `decide_anchor_attempt` can only make retrying from `Signed` safe if
+/// `Signed` was actually recorded before the send that might be interrupted.
+/// This pins the ordering the same way `p01_caller_is_captured_before_the_
+/// first_await` pins caller-capture: by finding both markers in the
+/// comment-stripped source and asserting on their positions, so the property
+/// is re-checked on every future edit rather than trusted to have survived one.
+#[test]
+fn p03_signed_state_is_persisted_before_the_fresh_ceremony_broadcasts() {
+    let src = canister_src_without_comments();
+    let fn_idx = src.find("pub async fn create_and_broadcast_anchor").expect("entry point must exist");
+    let body = &src[fn_idx..];
+
+    // Unique in the file: the ONLY place a NEW Signed value is constructed.
+    // The Rebroadcast branch reads an existing txid/raw_tx out of the
+    // decision — it never builds this literal.
+    let signed_insert_idx = body
+        .find("AnchorAttemptState::Signed { txid: txid.clone()")
+        .expect("the fresh-ceremony path must persist a Signed state before broadcasting");
+    // The LAST bitcoin_send_transaction call in the function is the
+    // fresh-ceremony one — Rebroadcast's own call sits earlier in the file,
+    // in an earlier match arm.
+    let last_broadcast_idx =
+        body.rfind("bitcoin_send_transaction(").expect("the entry point must broadcast");
+
+    assert!(
+        signed_insert_idx < last_broadcast_idx,
+        "Signed must be persisted BEFORE bitcoin_send_transaction is invoked for a fresh ceremony — \
+         otherwise a trap, upgrade, or ambiguous resumption between signing and broadcast leaves no \
+         durable record of which transaction to rebroadcast, and a retry could sign a second, \
+         competing spend instead"
+    );
+}
+
 /// `btc_anchor_core` must never take a CDK dependency. Its freedom from one is
 /// what keeps all 19 pure tests and the rust-bitcoin oracle runnable on the
 /// host, independent of which CDK the canister links against.

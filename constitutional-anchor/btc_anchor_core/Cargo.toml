@@ -22,6 +22,18 @@ hex = "0.4"
 sha2 = "0.10"
 ripemd = "0.1"
 bech32 = "0.9"
+# P0.3 (operator ruling, 2026-08-08): AnchorAttemptState must survive a
+# canister upgrade, via the SAME ic_cdk::storage::stable_save/stable_restore
+# mechanism InitArg already uses in btc_signer_psbt — which serialises with
+# Candid. `candid` is a serialisation crate, not an IC runtime dependency: it
+# has no `links` key and does not conflict with either ic-cdk major, so
+# depending on it here does not compromise this crate's CDK-freedom (see
+# core_stays_cdk_free, which scans for ic-cdk/ic_cdk specifically).
+candid = "0.10"
+# candid's `Deserialize` derive expands to code that references `serde`
+# directly — it is not enough to depend on candid alone, even though candid
+# re-exports the trait. Same version already pinned in btc_signer_psbt.
+serde = { version = "1.0", features = ["derive"] }
 
 [dev-dependencies]
 bitcoin = { version = "0.32", default-features = false, features = ["std"] }

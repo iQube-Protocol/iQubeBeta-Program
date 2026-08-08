@@ -132,6 +132,17 @@ thread_local! {
     /// NOT initialised to a usable default. Until `init` runs, every anchoring
     /// request is denied — an uninitialised signer must be inert, not permissive.
     static CONFIG: std::cell::RefCell<Option<AnchorConfig>> = std::cell::RefCell::new(None);
+    /// P0.3 (operator ruling, 2026-08-08) — the durable, root-indexed anchor-
+    /// attempt state machine. `BTreeMap`, not `HashMap`: `decide_anchor_attempt`
+    /// takes `&BTreeMap` so it stays pure and host-testable without pulling
+    /// ic-cdk's hasher into btc_anchor_core, and iteration order is
+    /// deterministic, which matters for the cross-root exclusivity scan.
+    ///
+    /// Persisted across upgrades in `pre_upgrade`/`post_upgrade` below — this
+    /// is the "evidence needed for recovery" the ruling requires to survive
+    /// one, not merely heap state that an upgrade would silently discard.
+    static ANCHOR_ATTEMPTS: std::cell::RefCell<std::collections::BTreeMap<String, AnchorAttemptState>> =
+        std::cell::RefCell::new(std::collections::BTreeMap::new());
 }
 
 const DERIVATION_PATH_DEFAULT: &[&[u8]] = &[b"constitutional-anchor-v2"];
@@ -176,21 +187,39 @@ fn init(arg: InitArg) {
 #[pre_upgrade]
 fn pre_upgrade() {
     let cfg = CONFIG.with(|c| c.borrow().clone());
-    ic_cdk::storage::stable_save((cfg.map(|c| InitArg {
-        network: match c.network { BtcNetwork::Mainnet => "mainnet".into(), BtcNetwork::Testnet => "testnet".into() },
-        ecdsa_key_name: c.ecdsa_key_name,
-        authorized_pos_principal: Principal::from_text(
-            c.authorized_pos_principal.unwrap_or_default(),
-        )
-        .unwrap_or(Principal::anonymous()),
-    }),))
-    .expect("config must survive upgrade");
+    // P0.3: the anchor-attempt map persists alongside config, as a plain
+    // Vec of pairs — the same explicit-shape discipline the InitArg
+    // conversion above already follows, rather than trusting an unchecked
+    // direct BTreeMap serialisation.
+    let attempts: Vec<(String, AnchorAttemptState)> =
+        ANCHOR_ATTEMPTS.with(|a| a.borrow().iter().map(|(k, v)| (k.clone(), v.clone())).collect());
+    ic_cdk::storage::stable_save((
+        cfg.map(|c| InitArg {
+            network: match c.network { BtcNetwork::Mainnet => "mainnet".into(), BtcNetwork::Testnet => "testnet".into() },
+            ecdsa_key_name: c.ecdsa_key_name,
+            authorized_pos_principal: Principal::from_text(
+                c.authorized_pos_principal.unwrap_or_default(),
+            )
+            .unwrap_or(Principal::anonymous()),
+        }),
+        attempts,
+    ))
+    .expect("config and anchor-attempt state must survive upgrade");
 }
 
 #[post_upgrade]
 fn post_upgrade() {
-    if let Ok((Some(arg),)) = ic_cdk::storage::stable_restore::<(Option<InitArg>,)>() {
-        apply_config(arg);
+    // No prior deployment of this canister has ever existed (2026-08-08
+    // lineage census) — there is no pre-P0.3 stable-memory layout to remain
+    // compatible with, so the tuple shape below is free to include the
+    // attempt map from this canister's first real upgrade onward.
+    if let Ok((cfg_arg, attempts)) =
+        ic_cdk::storage::stable_restore::<(Option<InitArg>, Vec<(String, AnchorAttemptState)>)>()
+    {
+        if let Some(arg) = cfg_arg {
+            apply_config(arg);
+        }
+        ANCHOR_ATTEMPTS.with(|a| *a.borrow_mut() = attempts.into_iter().collect());
     }
 }
 
@@ -384,41 +413,21 @@ async fn broadcast_transaction(raw_tx: String) -> Result<String, String> {
     Ok("broadcast accepted by the network; use create_and_broadcast_anchor for the txid".to_string())
 }
 
-/// The full anchoring ceremony: fetch real UTXOs, build, sign, broadcast.
+/// Fetch real UTXOs, build, and sign — the part of the ceremony that happens
+/// BEFORE a decision has been persisted about the outcome. Returns the signed
+/// transaction's parts; the caller is responsible for persisting `Signed`
+/// (before broadcasting) and `Broadcast`/`Failed` afterward — this function
+/// touches no anchor-attempt state itself, so the SAME persistence rule
+/// applies regardless of which caller invokes it.
 ///
 /// REFUSES rather than fabricating. The predecessor substituted a UTXO with an
-/// all-zero txid and proceeded — manufacturing the appearance of an anchor with
-/// nothing to spend.
-/// THE ONLY AUTHORIZED ENTRY POINT (P0.1, independent review 2026-08-08).
-///
-/// `create_anchor_transaction`, `sign_transaction` and `broadcast_transaction`
-/// are private. They were public `#[update]` methods, which meant ANY principal
-/// on the IC could make this canister sign with its threshold key, spend its
-/// UTXOs, or broadcast arbitrary bytes. A signer with an open signing surface
-/// is not a signer; it is a signing oracle for whoever asks.
-///
-/// ── THE CALLER IS CAPTURED BEFORE THE FIRST AWAIT ──────────────────────────
-///
-/// This is not stylistic. On the IC, `ic_cdk::caller()` returns whoever is
-/// replying AT THAT POINT IN EXECUTION. After an inter-canister `await` — and
-/// this function awaits `ecdsa_public_key`, `bitcoin_get_utxos`,
-/// `sign_with_ecdsa` and `bitcoin_send_transaction` — it returns the MANAGEMENT
-/// CANISTER, not the originator. An authorization check placed after any await
-/// would therefore compare the management canister against the configured
-/// proof_of_state principal, fail, and be "fixed" by whoever debugged it into
-/// something that passes for everyone. Capturing first makes that mistake
-/// impossible to make quietly.
-#[update]
-pub async fn create_and_broadcast_anchor(data_hash: String, fee_rate: u64) -> Result<String, String> {
-    // ── FIRST STATEMENT. NOTHING MAY PRECEDE THIS. ──
-    let caller = ic_cdk::api::msg_caller().to_text();
-    let cfg = config()?;
-    authorize_anchor_caller(&caller, &cfg)?;
-
-    // Validate the commitment BEFORE spending anything.
-    let _ = op_return_script(&data_hash)?;
-
-    let path: Vec<Vec<u8>> = DERIVATION_PATH_DEFAULT.iter().map(|p| p.to_vec()).collect();
+/// all-zero txid and proceeded — manufacturing the appearance of an anchor
+/// with nothing to spend.
+async fn run_fresh_anchor_ceremony(
+    root: String,
+    path: Vec<Vec<u8>>,
+    fee_rate: u64,
+) -> Result<(String, String, Vec<AnchorInput>), String> {
     let pubkey = own_pubkey(path.clone()).await?;
     let network = config()?.network;
     let address = p2wpkh_address(&pubkey, network)?;
@@ -451,27 +460,174 @@ pub async fn create_and_broadcast_anchor(data_hash: String, fee_rate: u64) -> Re
             UTXO { txid: hex::encode(txid), vout: u.outpoint.vout, amount: u.value, script_pubkey: vec![] }
         })
         .collect();
+    let anchor_inputs: Vec<AnchorInput> = utxos
+        .iter()
+        .map(|u| AnchorInput { txid_hex: u.txid.clone(), vout: u.vout, value: u.amount })
+        .collect();
 
-    let effective_fee_rate = if fee_rate > 0 { fee_rate } else { median_fee_rate().await.unwrap_or(2) };
-    let unsigned = create_anchor_transaction(utxos, data_hash, effective_fee_rate).await?;
+    let effective_fee_rate = if fee_rate > 0 {
+        fee_rate
+    } else {
+        median_fee_rate().await.ok_or_else(|| {
+            "FEE_RATE_UNAVAILABLE: no fee_rate was supplied and Bitcoin fee-percentile discovery \
+             failed — refusing to substitute a guessed rate"
+                .to_string()
+        })?
+    };
+
+    let unsigned = create_anchor_transaction(utxos, root, effective_fee_rate).await?;
     let signed = sign_transaction(unsigned, path).await?;
-
-    let bytes = hex::decode(&signed.raw_tx).map_err(|e| format!("assembled raw_tx is not hex: {e}"))?;
-    bitcoin_send_transaction(&SendTransactionRequest { transaction: bytes, network: ic_network()? })
-        .await
-        .map_err(|e| format!("bitcoin_send_transaction rejected the anchor: {e:?}"))?;
-
-    // The txid was computed from the transaction's own bytes before broadcast.
-    Ok(signed.txid)
+    Ok((signed.txid, signed.raw_tx, anchor_inputs))
 }
 
+/// THE ONLY AUTHORIZED ENTRY POINT (P0.1, independent review 2026-08-08).
+///
+/// `create_anchor_transaction`, `sign_transaction` and `broadcast_transaction`
+/// are private. They were public `#[update]` methods, which meant ANY principal
+/// on the IC could make this canister sign with its threshold key, spend its
+/// UTXOs, or broadcast arbitrary bytes. A signer with an open signing surface
+/// is not a signer; it is a signing oracle for whoever asks.
+///
+/// ── THE CALLER IS CAPTURED BEFORE THE FIRST AWAIT ──────────────────────────
+///
+/// This is not stylistic. On the IC, `ic_cdk::caller()` returns whoever is
+/// replying AT THAT POINT IN EXECUTION. After an inter-canister `await` — and
+/// this function awaits `ecdsa_public_key`, `bitcoin_get_utxos`,
+/// `sign_with_ecdsa` and `bitcoin_send_transaction` — it returns the MANAGEMENT
+/// CANISTER, not the originator. An authorization check placed after any await
+/// would therefore compare the management canister against the configured
+/// proof_of_state principal, fail, and be "fixed" by whoever debugged it into
+/// something that passes for everyone. Capturing first makes that mistake
+/// impossible to make quietly.
+///
+/// ── SPEND SERIALISATION / IDEMPOTENCY (P0.3, operator ruling, 2026-08-08) ──
+///
+/// Immediately after authorization and BEFORE the first NETWORK await, this
+/// atomically decides and — if the decision is `Reserve` — records the
+/// reservation, in one synchronous `RefCell` borrow. IC message execution is
+/// atomic up to its first await, so no concurrent call can observe or act on
+/// this root between the decision and the insert: there is no window for a
+/// second caller to slip in.
+///
+/// `decide_anchor_attempt` (btc_anchor_core, pure, host-tested) owns every
+/// rule about what happens next: return the existing txid for an
+/// already-broadcast root, rebroadcast the exact existing transaction for an
+/// already-signed root without rebuilding it, refuse a different root while
+/// one is active, or clear to reserve. This function only APPLIES the
+/// decision — the rule that is tested is the rule that runs.
+///
+/// `Signed` is persisted BEFORE `bitcoin_send_transaction` is invoked for a
+/// fresh ceremony, so a canister trap, upgrade, or ambiguous resumption
+/// between signing and broadcast leaves durable evidence of exactly which
+/// transaction to rebroadcast — never a reason to sign a second one.
+#[update]
+pub async fn create_and_broadcast_anchor(data_hash: String, fee_rate: u64) -> Result<String, String> {
+    // ── FIRST STATEMENT. NOTHING MAY PRECEDE THIS. ──
+    let caller = ic_cdk::api::msg_caller().to_text();
+    let cfg = config()?;
+    authorize_anchor_caller(&caller, &cfg)?;
+
+    // Validate the commitment AND canonicalise it — the attempt map is keyed
+    // on this canonical form so two spellings of the same root are never
+    // treated as two different anchor attempts.
+    let root = normalize_root_hex(&data_hash)?;
+
+    // ── ATOMIC DECISION + RESERVATION. STILL BEFORE THE FIRST AWAIT. ──
+    let decision = ANCHOR_ATTEMPTS.with(|a| {
+        let mut attempts = a.borrow_mut();
+        let decision = decide_anchor_attempt(&root, &attempts);
+        if matches!(decision, AnchorDecision::Reserve) {
+            attempts.insert(root.clone(), AnchorAttemptState::Reserved);
+        }
+        decision
+    });
+
+    match decision {
+        AnchorDecision::ReturnBroadcast(txid) => return Ok(txid),
+        AnchorDecision::InProgress { active_root } => {
+            return Err(format!(
+                "ANCHOR_IN_PROGRESS: root {active_root} already has an active anchor ceremony \
+                 (reserved or signed, not yet broadcast) — refusing to start a concurrent Bitcoin \
+                 spend for root {root}"
+            ));
+        }
+        AnchorDecision::Rebroadcast { txid, raw_tx } => {
+            // Same root, already signed. REBROADCAST THE EXACT SAME BYTES —
+            // never refetch UTXOs or build a second spend for a root that
+            // already has a valid signed transaction.
+            let bytes = hex::decode(&raw_tx)
+                .map_err(|e| format!("stored raw_tx for root {root} is not hex: {e}"))?;
+            bitcoin_send_transaction(&SendTransactionRequest { transaction: bytes, network: ic_network()? })
+                .await
+                .map_err(|e| {
+                    // Stays Signed — untouched here. A valid signed
+                    // transaction still exists, and the next retry must
+                    // rebroadcast it via this same branch, never rebuild.
+                    format!("rebroadcast of the existing signed transaction for root {root} failed: {e:?}")
+                })?;
+            ANCHOR_ATTEMPTS.with(|a| {
+                a.borrow_mut().insert(root.clone(), AnchorAttemptState::Broadcast { txid: txid.clone() });
+            });
+            return Ok(txid);
+        }
+        AnchorDecision::Reserve => {
+            // Reserved above; the fresh ceremony continues below.
+        }
+    }
+
+    let path: Vec<Vec<u8>> = DERIVATION_PATH_DEFAULT.iter().map(|p| p.to_vec()).collect();
+    let ceremony_result = run_fresh_anchor_ceremony(root.clone(), path, fee_rate).await;
+
+    let (txid, raw_tx, inputs) = match ceremony_result {
+        Ok(v) => v,
+        Err(e) => {
+            // Nothing was signed. Record a truthful failed state — Failed is
+            // not Reserved/Signed, so this releases the root's exclusivity
+            // and permits a controlled retry; nothing was ever spent.
+            ANCHOR_ATTEMPTS.with(|a| {
+                a.borrow_mut().insert(root.clone(), AnchorAttemptState::Failed { reason: e.clone() });
+            });
+            return Err(e);
+        }
+    };
+
+    // ── PERSIST Signed BEFORE invoking bitcoin_send_transaction. ──
+    ANCHOR_ATTEMPTS.with(|a| {
+        a.borrow_mut()
+            .insert(root.clone(), AnchorAttemptState::Signed { txid: txid.clone(), raw_tx: raw_tx.clone(), inputs });
+    });
+
+    let bytes = hex::decode(&raw_tx).map_err(|e| format!("assembled raw_tx is not hex: {e}"))?;
+    bitcoin_send_transaction(&SendTransactionRequest { transaction: bytes, network: ic_network()? })
+        .await
+        .map_err(|e| {
+            // Stays Signed, deliberately untouched — see the Rebroadcast
+            // branch above, which is exactly what the next retry will hit.
+            format!("bitcoin_send_transaction rejected the anchor: {e:?}")
+        })?;
+
+    ANCHOR_ATTEMPTS.with(|a| {
+        a.borrow_mut().insert(root.clone(), AnchorAttemptState::Broadcast { txid: txid.clone() });
+    });
+
+    Ok(txid)
+}
+
+/// Discover the median fee rate, in sat/vB. `None` means discovery failed —
+/// the network call errored, or the canister has no configured network to
+/// ask about — and the caller must treat that as `FEE_RATE_UNAVAILABLE`,
+/// never silently substitute a guessed rate (P0.3, operator ruling,
+/// 2026-08-08: "remove `median_fee_rate().await.unwrap_or(2)`... return
+/// FEE_RATE_UNAVAILABLE").
 async fn median_fee_rate() -> Option<u64> {
     let network = ic_network().ok()?;
     let p = bitcoin_get_current_fee_percentiles(&GetCurrentFeePercentilesRequest { network })
         .await
         .ok()?;
-    // Percentiles are millisatoshi/vB; index 50 is the median.
-    p.get(50).map(|m| (u64::from(*m) / 1000).max(1))
+    // Percentiles are millisatoshi/vB; index 50 is the median. Rounded UP to
+    // sat/vB, never down — msat_per_vb_to_sat_per_vb_ceil (btc_anchor_core,
+    // pure and host-tested) is the single place that conversion happens.
+    p.get(50).map(|m| msat_per_vb_to_sat_per_vb_ceil(u64::from(*m)))
 }
 
 #[query]
