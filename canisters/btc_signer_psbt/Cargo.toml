@@ -16,3 +16,10 @@ sha2 = "0.10"
 
 [dev-dependencies]
 futures = "0.3"
+# Acceptance-test only. BT-4 must DECODE the derived address rather than guess
+# at its shape: a structural check on charset/length passed or failed depending
+# on where the last '1' happened to fall in the hex payload, i.e. on the test
+# pubkey's bytes rather than on the address being valid. A canary that passes
+# by accident is worse than none.
+bech32 = "0.9"
+ripemd = "0.1"

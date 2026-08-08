@@ -295,15 +295,24 @@ pub fn get_all_addresses() -> Vec<BitcoinAddress> {
 // Export Candid interface
 ic_cdk::export_candid!();
 
+/// Phase B acceptance contract — see `acceptance_tests.rs`. Expected RED
+/// against this commit; each test names the defect that makes it fail.
+#[cfg(test)]
+#[path = "acceptance_tests.rs"]
+mod acceptance_tests;
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn anchor_tx_requires_utxos() {
+        // Argument order corrected 2026-08-08: the signature is
+        // (utxos, data_hash, fee_rate). These tests had them reversed and had
+        // therefore NEVER COMPILED — this canister has never been tested.
         let res = futures::executor::block_on(create_anchor_transaction(
-            "abcd".to_string(),
             vec![],
+            "abcd".to_string(),
             10,
         ));
         assert!(res.is_err());
@@ -318,8 +327,8 @@ mod tests {
             script_pubkey: vec![],
         };
         let res = futures::executor::block_on(create_anchor_transaction(
-            "deadbeef".to_string(),
             vec![utxo],
+            "deadbeef".to_string(),
             10,
         ));
         let tx = res.expect("should build unsigned tx");
