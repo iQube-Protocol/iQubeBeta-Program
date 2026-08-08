@@ -1,0 +1,53 @@
+{
+  "_comment": "CAP-1 evidence bundle. Fill in every null after the runbook's steps complete. Do not fill a field from self-report where the runbook specifies an independent source.",
+  "ceremony": {
+    "H": null,
+    "leaf_hex": null,
+    "inclusion_proof": null,
+    "root_hex": null,
+    "txid": null
+  },
+  "bitcoin_evidence": {
+    "raw_transaction_hex": null,
+    "source": "mempool.space testnet4 API (independent of PoS/signer)",
+    "block_hash": null,
+    "block_height": null,
+    "confirmation_depth": null,
+    "confirmation_depth_source": "computed as tip_height - block_height + 1 from mempool.space testnet4 API, not from PoS or signer self-report"
+  },
+  "independent_verification": {
+    "verify_op_return_result": null,
+    "verify_inclusion_proof_result": null,
+    "bitcoin_core_decoderawtransaction_result_if_available": null
+  },
+  "deployment": {
+    "source_commit": "a455f47d5a120bad462e6ba96a7600d35afa56b2",
+    "signer_canister": {
+      "principal": null,
+      "network": "testnet",
+      "ecdsa_key_name": "test_key_1",
+      "authorized_pos_principal": null,
+      "deployment_build_wasm_sha256": null,
+      "deployed_module_hash": null,
+      "module_hash_verified_against_source": null
+    },
+    "pos_v2_canister": {
+      "principal": null,
+      "anchor_signer_principal": null,
+      "authorized_operator_principal": null,
+      "authorized_reconciler_principal": null,
+      "min_confirmations": 1,
+      "deployment_build_wasm_sha256": null,
+      "deployed_module_hash": null,
+      "module_hash_verified_against_source": null
+    }
+  },
+  "reconciliation": {
+    "record_confirmation_caller_principal": null,
+    "record_confirmation_result": null
+  },
+  "result": {
+    "pass_fail": null,
+    "reasoning": null
+  }
+}

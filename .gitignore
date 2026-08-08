@@ -30,3 +30,7 @@ backups/
 next/
 apps/*/.next/
 packages/*/.next/
+
+# Python
+__pycache__/
+*.pyc
