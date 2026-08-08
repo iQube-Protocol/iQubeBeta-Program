@@ -448,6 +448,19 @@ fn canister_src_without_comments() -> String {
         .join("\n")
 }
 
+/// Slice out exactly ONE function's source, from its `fn_marker` up to (but
+/// not including) the next top-level `pub ` item, or to the end of the file
+/// if it is the last one. Bounded slicing — unlike a bare `&src[idx..]` —
+/// is required whenever a test must assert something is ABSENT from one
+/// function without accidentally matching a LATER function that
+/// legitimately contains it.
+fn function_body<'a>(src: &'a str, fn_marker: &str) -> &'a str {
+    let start = src.find(fn_marker).unwrap_or_else(|| panic!("{fn_marker} not found in source"));
+    let rest = &src[start..];
+    let end = rest[fn_marker.len()..].find("\npub ").map(|i| i + fn_marker.len()).unwrap_or(rest.len());
+    &rest[..end]
+}
+
 /// THE LEGACY DEFECT THIS FORBIDS: `canisters/proof_of_state::anchor()`
 /// hard-coded `let btc_canister_id = "uxrrr-q7777-77774-qaaaq-cai";` — a
 /// LOCAL dfx id that resolves `canister_not_found` on the IC, which is why
@@ -591,4 +604,231 @@ fn p_stable_persistence_covers_every_piece_of_state_in_proof_of_state_v2() {
         );
         assert!(post_body.contains(marker), "post_upgrade must restore {marker}");
     }
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// P1 — close the confused-deputy surface (operator ruling, this follow-up)
+// ───────────────────────────────────────────────────────────────────────────
+//
+// WAS RED against the Phase P baseline: `issue_receipt`, `batch_now`, and
+// `request_anchor` were public `#[update]` methods with no caller check of
+// their own. Constitutional Anchor v2 correctly authorizes ITS caller to
+// be `proof_of_state_v2`, but nothing stopped ANY principal from calling
+// `request_anchor` directly and using this canister as the AUTHORIZED
+// DEPUTY to cause a real Bitcoin spend — a confused-deputy attack.
+
+/// The three OPERATIONAL, state-changing methods must each authorize their
+/// caller BEFORE touching any state — mirroring
+/// `p_record_confirmation_authorizes_before_touching_batch_state`'s own
+/// discipline for the (deliberately separate) reconciler role.
+#[test]
+fn p1_operational_methods_authorize_the_operator_before_touching_state() {
+    let src = canister_src_without_comments();
+
+    let issue_body = function_body(&src, "pub fn issue_receipt(");
+    let issue_auth_idx = issue_body.find("authorize_operator(").expect("issue_receipt must authorize the operator");
+    let issue_state_idx =
+        issue_body.find("RECEIPTS.with(").expect("issue_receipt must eventually touch RECEIPTS");
+    assert!(
+        issue_auth_idx < issue_state_idx,
+        "issue_receipt must authorize the operator BEFORE touching RECEIPTS"
+    );
+
+    let batch_body = function_body(&src, "pub fn batch_now(");
+    let batch_auth_idx = batch_body.find("authorize_operator(").expect("batch_now must authorize the operator");
+    let batch_state_idx = batch_body.find("PENDING.with(").expect("batch_now must eventually touch PENDING");
+    assert!(
+        batch_auth_idx < batch_state_idx,
+        "batch_now must authorize the operator BEFORE touching PENDING"
+    );
+}
+
+/// `request_anchor` must capture and check the operator caller BEFORE its
+/// first `.await` — the same discipline
+/// `btc_signer_psbt::create_and_broadcast_anchor` follows for the identical
+/// reason: `ic_cdk::caller()` after an inter-canister await returns the
+/// MANAGEMENT CANISTER, not the originator, so an authorization check
+/// placed after any await would compare the wrong principal and could be
+/// "fixed" into something that passes for everyone.
+#[test]
+fn p1_request_anchor_authorizes_before_its_first_await() {
+    let src = canister_src_without_comments();
+    let body = function_body(&src, "pub async fn request_anchor(");
+    let auth_idx = body.find("authorize_operator(").expect("request_anchor must authorize the operator");
+    let await_idx = body.find(".await").expect("request_anchor must await the signer call");
+    assert!(
+        auth_idx < await_idx,
+        "authorize_operator must be called BEFORE the first .await, not after — capturing the \
+         caller post-await would check the management canister's principal instead of the \
+         original caller's"
+    );
+}
+
+/// Read-only queries stay public — P1 gates only the state-changing
+/// OPERATIONAL surface, never observation.
+#[test]
+fn p1_read_only_queries_remain_ungated() {
+    let src = canister_src_without_comments();
+    for marker in [
+        "pub fn get_config(",
+        "pub fn verify_receipt(",
+        "pub fn get_receipt(",
+        "pub fn get_batch(",
+        "pub fn get_pending_count(",
+    ] {
+        let body = function_body(&src, marker);
+        assert!(
+            !body.contains("authorize_operator("),
+            "{marker} is a read-only query and must remain ungated — P1 authorizes only the \
+             state-changing operational methods"
+        );
+    }
+}
+
+/// `record_confirmation` keeps its OWN, separate gate. Operator and
+/// reconciler are deliberately different roles — the operator drives
+/// receipt admission and broadcast requests; only the reconciler may
+/// establish `Anchored`. Neither gate may substitute for the other.
+#[test]
+fn p1_record_confirmation_keeps_its_own_separate_reconciler_gate() {
+    let src = canister_src_without_comments();
+    let body = function_body(&src, "pub fn record_confirmation(");
+    assert!(
+        body.contains("authorized_reconciler_principal"),
+        "record_confirmation must check the caller against authorized_reconciler_principal"
+    );
+    assert!(
+        !body.contains("authorize_operator("),
+        "record_confirmation must not use the OPERATOR gate — it is a deliberately separate role \
+         from the reconciler"
+    );
+
+    let request_body = function_body(&src, "pub async fn request_anchor(");
+    assert!(
+        !request_body.contains("authorized_reconciler_principal"),
+        "request_anchor must not check the RECONCILER gate — it is gated by the operator role, \
+         a deliberately separate concern"
+    );
+}
+
+/// `InitArg` must require a governed `authorized_operator_principal`, and
+/// `validate_pos_config` must refuse the anonymous principal for it — the
+/// same discipline already applied to the signer and reconciler principals.
+#[test]
+fn p1_init_arg_requires_a_governed_operator_principal() {
+    let src = canister_src_without_comments();
+    assert!(
+        src.contains("authorized_operator_principal: Principal"),
+        "InitArg must declare a REQUIRED authorized_operator_principal field"
+    );
+    let validate_body = function_body(&src, "fn validate_pos_config(");
+    assert!(
+        validate_body.contains("authorized_operator_principal") && validate_body.contains("anonymous()"),
+        "validate_pos_config must refuse an anonymous authorized_operator_principal, exactly like \
+         the signer and reconciler principals"
+    );
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// P2 — no post-await stale-state write (operator ruling, this follow-up)
+// ───────────────────────────────────────────────────────────────────────────
+//
+// WAS RED against the Phase P baseline: `request_anchor` read/cloned the
+// batch BEFORE awaiting the signer, then applied `decide_anchor_request` to
+// that STALE `anchor_state`. If `record_confirmation` advanced the batch to
+// `Anchored` while `request_anchor` was suspended, the stale-state decision
+// would "succeed" and WRITE `AnchorRequested` back over `Anchored` —
+// silently erasing a real confirmation.
+
+/// `request_anchor` must never read `anchor_state` before the signer call's
+/// `.await` resolves — only an EXISTENCE check is permitted pre-await.
+#[test]
+fn p2_request_anchor_never_reads_anchor_state_before_the_await_resolves() {
+    let src = canister_src_without_comments();
+    let body = function_body(&src, "pub async fn request_anchor(");
+    let await_idx = body.find(".await").expect("request_anchor must await the signer call");
+    let pre_await = &body[..await_idx];
+    assert!(
+        !pre_await.contains(".anchor_state"),
+        "no anchor_state may be read before the signer call's .await resolves — a batch lookup \
+         before that point may only check EXISTENCE, never capture a stale anchor_state snapshot"
+    );
+}
+
+/// The decision, once the signer returns, must come from a FRESH mutable
+/// read of `BATCHES` — not a value captured earlier — and that fresh read
+/// must precede the call to `decide_anchor_request`.
+#[test]
+fn p2_request_anchor_decides_from_a_freshly_read_current_batch_state() {
+    let src = canister_src_without_comments();
+    let body = function_body(&src, "pub async fn request_anchor(");
+    let await_idx = body.find(".await").expect("request_anchor must await the signer call");
+    let post_await = &body[await_idx..];
+
+    let getmut_idx = post_await
+        .find(".get_mut(&root_hex)")
+        .expect("the post-await decision must read the batch via a fresh mutable lookup");
+    let decide_idx = post_await
+        .find("decide_anchor_request(")
+        .expect("request_anchor must decide the new state after the signer returns");
+    assert!(
+        getmut_idx < decide_idx,
+        "the fresh get_mut lookup must happen BEFORE decide_anchor_request is called, so the \
+         decision is made from the CURRENT state — never a snapshot taken before the await"
+    );
+}
+
+/// THE REGRESSION CASE, at the pure decision-function level: AnchorRequested
+/// (txid) -> [request_anchor's retry suspends on its await] ->
+/// record_confirmation independently advances the TRUE current state to
+/// Anchored(txid) -> [the retry's callback resumes]. Applying
+/// `decide_anchor_request` to the STALE pre-await snapshot (what the OLD
+/// canister code did) "succeeds" and would silently regress Anchored back
+/// to AnchorRequested. Applying it to the CURRENT state (what the fixed
+/// canister does — see the two structural canaries above) leaves Anchored
+/// untouched. This test is what makes the danger of the stale snapshot,
+/// and the correctness of reading fresh, both concrete and host-testable.
+#[test]
+fn p2_a_stale_pre_await_snapshot_would_silently_erase_a_confirmation_that_advanced_during_the_await() {
+    let stale_snapshot_captured_before_await = BatchAnchorState::AnchorRequested { txid: "txid-a".to_string() };
+
+    // WHILE the retry is suspended, confirmation independently advances the
+    // TRUE current state.
+    let true_current_state_after_confirmation =
+        decide_confirmation(&stale_snapshot_captured_before_await, "txid-a", 900_000, 6, 6)
+            .expect("confirmation advances AnchorRequested -> Anchored during the suspension");
+    assert_eq!(
+        true_current_state_after_confirmation,
+        BatchAnchorState::Anchored { txid: "txid-a".to_string(), block_height: 900_000, confirmations: 6 }
+    );
+
+    // THE BUG: deciding from the STALE snapshot "succeeds"...
+    let wrongly_recomputed_from_stale_snapshot =
+        decide_anchor_request(&stale_snapshot_captured_before_await, "txid-a".to_string())
+            .expect("the buggy path 'succeeds' — which is exactly what makes it dangerous");
+    // ...but produces a DIFFERENT, REGRESSIVE result: back to AnchorRequested.
+    assert_ne!(
+        wrongly_recomputed_from_stale_snapshot, true_current_state_after_confirmation,
+        "deciding from the STALE pre-await snapshot must diverge from the TRUE current state — \
+         this divergence is precisely why the old canister code could overwrite a real \
+         confirmation with a stale re-request"
+    );
+    assert_eq!(
+        wrongly_recomputed_from_stale_snapshot,
+        BatchAnchorState::AnchorRequested { txid: "txid-a".to_string() },
+        "naming the regression explicitly: the stale path would write AnchorRequested back over \
+         an Anchored batch"
+    );
+
+    // THE FIX: deciding from the TRUE CURRENT state (re-read after the
+    // await, as request_anchor now does) leaves Anchored untouched.
+    let correctly_recomputed_from_current_state =
+        decide_anchor_request(&true_current_state_after_confirmation, "txid-a".to_string())
+            .expect("a retry's own txid matches the now-Anchored txid");
+    assert_eq!(
+        correctly_recomputed_from_current_state, true_current_state_after_confirmation,
+        "re-deciding from the TRUE current (Anchored) state must leave the batch Anchored, \
+         unchanged — the retry's callback must never be able to erase a confirmation that \
+         happened while it was suspended"
+    );
 }

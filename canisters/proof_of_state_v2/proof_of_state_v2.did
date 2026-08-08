@@ -14,6 +14,7 @@ type BatchV2 = record {
   root_hex : text;
 };
 type InitArg = record {
+  authorized_operator_principal : principal;
   authorized_reconciler_principal : principal;
   anchor_signer_principal : principal;
   min_confirmations : nat32;
@@ -41,11 +42,16 @@ service : (InitArg) -> {
   // one call). Every involved receipt is updated with its `batch_root_hex`
   // and its own verifiable `inclusion_proof` — never left as an empty,
   // unverifiable placeholder.
+  // 
+  // GATED TO THE AUTHORIZED OPERATOR (P1, this follow-up), checked BEFORE
+  // any state is touched.
   batch_now : () -> (Result);
   get_batch : (text) -> (opt BatchV2) query;
   // Read the configuration. No secrets — the principals and the
   // confirmation threshold are public facts about the deployment.
-  get_config : () -> (opt record { text; text; nat32 }) query;
+  // `(anchor_signer_principal, authorized_operator_principal,
+  // authorized_reconciler_principal, min_confirmations)`.
+  get_config : () -> (opt record { text; text; text; nat32 }) query;
   get_pending_count : () -> (nat64) query;
   get_receipt : (text) -> (opt ReceiptV2) query;
   // `issue_receipt(H)` — IDEMPOTENT BY H. The legacy canister minted
@@ -54,6 +60,9 @@ service : (InitArg) -> {
   // canonical-H-keyed lookup happens BEFORE any new receipt is constructed,
   // and `pos_core::decide_issue_receipt` owns the actual idempotency rule —
   // this function only applies it.
+  // 
+  // GATED TO THE AUTHORIZED OPERATOR (P1, this follow-up), checked BEFORE
+  // any state is touched.
   issue_receipt : (text) -> (Result_1);
   // Record confirmation/reconciliation evidence for `root_hex` — the ONLY
   // path to `BatchAnchorState::Anchored`.
@@ -70,6 +79,17 @@ service : (InitArg) -> {
   record_confirmation : (text, text, nat64, nat32) -> (Result_2);
   // Request an anchor for `root_hex` from Constitutional Anchor v2.
   // 
+  // GATED TO THE AUTHORIZED OPERATOR (P1, this follow-up), captured and
+  // checked BEFORE the first await — the same "caller captured/checked
+  // first" discipline `btc_signer_psbt::create_and_broadcast_anchor` itself
+  // follows, for the identical reason: `ic_cdk::caller()` after an
+  // inter-canister await returns the MANAGEMENT CANISTER, not the
+  // originator, so authorizing after any await would check the wrong
+  // principal. An unauthenticated public `request_anchor` would let ANY
+  // caller use this canister as Constitutional Anchor v2's authorized
+  // deputy and cause a real Bitcoin spend, even though that caller could
+  // never call the signer directly.
+  // 
   // THE SIGNER IS REACHED ONLY THROUGH GOVERNED CONFIG. `cfg.
   // anchor_signer_principal` is read from `CONFIG` — never a literal, unlike
   // the legacy `anchor()`'s `btc_canister_id = "uxrrr-q7777-77774-qaaaq-cai"`.
@@ -79,6 +99,17 @@ service : (InitArg) -> {
   // returns a txid ONLY when Constitutional Anchor v2 itself returns one —
   // every other outcome, whether the signer refused or the call itself
   // failed, is a truthful `Err` naming which.
+  // 
+  // ── NO POST-AWAIT STALE-STATE WRITE (P2, this follow-up) ───────────────────
+  // 
+  // The batch's `anchor_state` is deliberately NOT read before the signer
+  // call — only its EXISTENCE is checked. After the signer returns a txid,
+  // the CURRENT `anchor_state` is re-read from `BATCHES`, decided, and
+  // written in ONE synchronous borrow. Deciding from a state snapshot taken
+  // BEFORE the await would let a `record_confirmation` that ran WHILE this
+  // call was suspended be silently overwritten: a batch already advanced to
+  // `Anchored` could be written back down to `AnchorRequested`, erasing a
+  // real confirmation.
   // 
   // THIS NEVER WRITES `Anchored`. `decide_anchor_request` (pos_core) can
   // only ever produce `Unanchored -> AnchorRequested` (or reconcile a retry

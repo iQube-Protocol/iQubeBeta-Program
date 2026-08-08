@@ -28,6 +28,35 @@
 //! | `get_anchor_status()` returned `"confirmed"` merely because `btc_anchor_txid.is_some()` | `BatchAnchorState::AnchorRequested` (broadcast) is a DISTINCT, non-terminal state from `BatchAnchorState::Anchored` — see `record_confirmation` |
 //! | heap-only `thread_local!` state — an upgrade silently discarded every receipt and batch | `pre_upgrade`/`post_upgrade` persist config, receipts, pending order, and batches via `ic_cdk::storage::stable_save`/`stable_restore` |
 //!
+//! ─── P1 — CLOSE THE CONFUSED-DEPUTY SURFACE (this follow-up) ────────────────
+//!
+//! Constitutional Anchor v2 correctly authorizes ITS caller to be THIS
+//! canister (`authorized_pos_principal`). But `issue_receipt`, `batch_now`,
+//! and — most dangerously — `request_anchor` were public `#[update]`
+//! methods with no caller check of their own. Any principal on the IC could
+//! call `request_anchor` and use this canister as the AUTHORIZED DEPUTY to
+//! cause a real Bitcoin spend, even though it could never call the signer
+//! directly. `authorized_operator_principal` (governed `InitArg`, required)
+//! closes that: every state-changing operational method authorizes its
+//! caller FIRST, before touching any state. Read-only queries stay public.
+//! `record_confirmation` keeps its OWN separate gate
+//! (`authorized_reconciler_principal`) — operator and reconciler are
+//! deliberately different roles. If permissionless receipt admission is
+//! ever wanted, that is a later, explicit policy/economic decision — never
+//! something achieved through an unguarded update surface.
+//!
+//! ─── P2 — NO POST-AWAIT STALE-STATE WRITE (this follow-up) ──────────────────
+//!
+//! `request_anchor` used to read/clone the batch BEFORE awaiting the
+//! signer, then apply `decide_anchor_request` to that STALE
+//! `anchor_state`. If `record_confirmation` advanced the batch to
+//! `Anchored` while `request_anchor` was suspended on the signer call, the
+//! stale-state decision would "succeed" and WRITE `AnchorRequested` back
+//! over `Anchored` — silently erasing a real confirmation. The batch's
+//! CURRENT `anchor_state` is now re-read from `BATCHES`, decided, and
+//! written in ONE synchronous borrow AFTER the signer returns — never from
+//! a snapshot taken before the await.
+//!
 //! ─── THE NEXT GATE ──────────────────────────────────────────────────────────
 //!
 //! Phase P closes with these tests GREEN. No canister is deployed, no
@@ -56,10 +85,16 @@ pub struct InitArg {
     /// `request_anchor` calls. Never a literal in source — see the module
     /// docs' defect table.
     pub anchor_signer_principal: Principal,
+    /// Who may call the state-changing OPERATIONAL methods —
+    /// `issue_receipt`, `batch_now`, `request_anchor` (P1, this follow-up).
+    /// Distinct from `authorized_reconciler_principal`: the operator drives
+    /// receipt admission and broadcast requests; only the reconciler may
+    /// establish ANCHORED.
+    pub authorized_operator_principal: Principal,
     /// Who may submit confirmation/reconciliation evidence via
     /// `record_confirmation`. Deliberately distinct from
-    /// `anchor_signer_principal`: this principal is what independently
-    /// establishes ANCHORED, never mere BROADCAST.
+    /// `authorized_operator_principal`: this principal is what
+    /// independently establishes ANCHORED, never mere BROADCAST.
     pub authorized_reconciler_principal: Principal,
     /// Confirmation depth required before Broadcast may become Anchored.
     /// Must be at least 1 — zero confirmations is Broadcast, not Anchored.
@@ -69,6 +104,7 @@ pub struct InitArg {
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct PosConfig {
     anchor_signer_principal: Principal,
+    authorized_operator_principal: Principal,
     authorized_reconciler_principal: Principal,
     min_confirmations: u32,
 }
@@ -76,6 +112,9 @@ struct PosConfig {
 fn validate_pos_config(cfg: &PosConfig) -> Result<(), String> {
     if cfg.anchor_signer_principal == Principal::anonymous() {
         return Err("anchor_signer_principal may not be the anonymous principal".to_string());
+    }
+    if cfg.authorized_operator_principal == Principal::anonymous() {
+        return Err("authorized_operator_principal may not be the anonymous principal".to_string());
     }
     if cfg.authorized_reconciler_principal == Principal::anonymous() {
         return Err("authorized_reconciler_principal may not be the anonymous principal".to_string());
@@ -85,6 +124,28 @@ fn validate_pos_config(cfg: &PosConfig) -> Result<(), String> {
             "min_confirmations must be at least 1 — zero confirmations is Broadcast, not Anchored"
                 .to_string(),
         );
+    }
+    Ok(())
+}
+
+/// Authorize a caller for one of the state-changing OPERATIONAL methods
+/// (P1, this follow-up). `issue_receipt`, `batch_now`, and `request_anchor`
+/// all call this FIRST, before touching any state — the same
+/// caller-checked-before-anything-else discipline
+/// `btc_signer_psbt::authorize_anchor_caller` uses. An unauthenticated
+/// public `request_anchor` in particular would let ANY caller use this
+/// canister as Constitutional Anchor v2's authorized deputy and cause a
+/// real Bitcoin spend, even though that caller could never call the signer
+/// directly — the confused-deputy surface this function closes.
+fn authorize_operator(caller: &str, cfg: &PosConfig) -> Result<(), String> {
+    if caller != cfg.authorized_operator_principal.to_text() {
+        return Err(format!(
+            "caller {caller} is not the authorized operator ({}) — refusing to perform this \
+             state-changing operation. If permissionless receipt admission is ever desired, that \
+             must be a later, explicit policy/economic decision, never something achieved through \
+             an unguarded update surface",
+            cfg.authorized_operator_principal.to_text()
+        ));
     }
     Ok(())
 }
@@ -125,6 +186,7 @@ fn config() -> Result<PosConfig, String> {
 fn apply_config(arg: InitArg) {
     let cfg = PosConfig {
         anchor_signer_principal: arg.anchor_signer_principal,
+        authorized_operator_principal: arg.authorized_operator_principal,
         authorized_reconciler_principal: arg.authorized_reconciler_principal,
         min_confirmations: arg.min_confirmations,
     };
@@ -155,6 +217,7 @@ fn pre_upgrade() {
     let cfg = CONFIG.with(|c| c.borrow().clone());
     let init_arg = cfg.map(|c| InitArg {
         anchor_signer_principal: c.anchor_signer_principal,
+        authorized_operator_principal: c.authorized_operator_principal,
         authorized_reconciler_principal: c.authorized_reconciler_principal,
         min_confirmations: c.min_confirmations,
     });
@@ -186,12 +249,15 @@ fn post_upgrade() {
 
 /// Read the configuration. No secrets — the principals and the
 /// confirmation threshold are public facts about the deployment.
+/// `(anchor_signer_principal, authorized_operator_principal,
+/// authorized_reconciler_principal, min_confirmations)`.
 #[query]
-pub fn get_config() -> Option<(String, String, u32)> {
+pub fn get_config() -> Option<(String, String, String, u32)> {
     CONFIG.with(|c| {
         c.borrow().as_ref().map(|cfg| {
             (
                 cfg.anchor_signer_principal.to_text(),
+                cfg.authorized_operator_principal.to_text(),
                 cfg.authorized_reconciler_principal.to_text(),
                 cfg.min_confirmations,
             )
@@ -205,8 +271,15 @@ pub fn get_config() -> Option<(String, String, u32)> {
 /// canonical-H-keyed lookup happens BEFORE any new receipt is constructed,
 /// and `pos_core::decide_issue_receipt` owns the actual idempotency rule —
 /// this function only applies it.
+///
+/// GATED TO THE AUTHORIZED OPERATOR (P1, this follow-up), checked BEFORE
+/// any state is touched.
 #[update]
 pub fn issue_receipt(h_hex: String) -> Result<ReceiptV2, String> {
+    let caller = ic_cdk::caller().to_text();
+    let cfg = config()?;
+    authorize_operator(&caller, &cfg)?;
+
     let canonical = normalize_h_hex(&h_hex)?;
     let now_ns = ic_cdk::api::time();
     let existing = RECEIPTS.with(|r| r.borrow().get(&canonical).cloned());
@@ -226,8 +299,15 @@ pub fn issue_receipt(h_hex: String) -> Result<ReceiptV2, String> {
 /// one call). Every involved receipt is updated with its `batch_root_hex`
 /// and its own verifiable `inclusion_proof` — never left as an empty,
 /// unverifiable placeholder.
+///
+/// GATED TO THE AUTHORIZED OPERATOR (P1, this follow-up), checked BEFORE
+/// any state is touched.
 #[update]
 pub fn batch_now() -> Result<BatchV2, String> {
+    let caller = ic_cdk::caller().to_text();
+    let cfg = config()?;
+    authorize_operator(&caller, &cfg)?;
+
     let h_hexes = PENDING.with(|p| {
         let mut p = p.borrow_mut();
         let drained = p.clone();
@@ -267,6 +347,17 @@ pub fn batch_now() -> Result<BatchV2, String> {
 
 /// Request an anchor for `root_hex` from Constitutional Anchor v2.
 ///
+/// GATED TO THE AUTHORIZED OPERATOR (P1, this follow-up), captured and
+/// checked BEFORE the first await — the same "caller captured/checked
+/// first" discipline `btc_signer_psbt::create_and_broadcast_anchor` itself
+/// follows, for the identical reason: `ic_cdk::caller()` after an
+/// inter-canister await returns the MANAGEMENT CANISTER, not the
+/// originator, so authorizing after any await would check the wrong
+/// principal. An unauthenticated public `request_anchor` would let ANY
+/// caller use this canister as Constitutional Anchor v2's authorized
+/// deputy and cause a real Bitcoin spend, even though that caller could
+/// never call the signer directly.
+///
 /// THE SIGNER IS REACHED ONLY THROUGH GOVERNED CONFIG. `cfg.
 /// anchor_signer_principal` is read from `CONFIG` — never a literal, unlike
 /// the legacy `anchor()`'s `btc_canister_id = "uxrrr-q7777-77774-qaaaq-cai"`.
@@ -277,6 +368,17 @@ pub fn batch_now() -> Result<BatchV2, String> {
 /// every other outcome, whether the signer refused or the call itself
 /// failed, is a truthful `Err` naming which.
 ///
+/// ── NO POST-AWAIT STALE-STATE WRITE (P2, this follow-up) ───────────────────
+///
+/// The batch's `anchor_state` is deliberately NOT read before the signer
+/// call — only its EXISTENCE is checked. After the signer returns a txid,
+/// the CURRENT `anchor_state` is re-read from `BATCHES`, decided, and
+/// written in ONE synchronous borrow. Deciding from a state snapshot taken
+/// BEFORE the await would let a `record_confirmation` that ran WHILE this
+/// call was suspended be silently overwritten: a batch already advanced to
+/// `Anchored` could be written back down to `AnchorRequested`, erasing a
+/// real confirmation.
+///
 /// THIS NEVER WRITES `Anchored`. `decide_anchor_request` (pos_core) can
 /// only ever produce `Unanchored -> AnchorRequested` (or reconcile a retry
 /// against an existing `AnchorRequested`/`Anchored` of the SAME txid) — see
@@ -284,10 +386,16 @@ pub fn batch_now() -> Result<BatchV2, String> {
 /// a wholly separate call.
 #[update]
 pub async fn request_anchor(root_hex: String) -> Result<String, String> {
+    // ── FIRST STATEMENT. NOTHING MAY PRECEDE THIS. ──
+    let caller = ic_cdk::caller().to_text();
     let cfg = config()?;
-    let batch = BATCHES
-        .with(|b| b.borrow().get(&root_hex).cloned())
-        .ok_or_else(|| format!("no batch with root {root_hex} is on record"))?;
+    authorize_operator(&caller, &cfg)?;
+
+    // EXISTENCE ONLY — never anchor_state. See P2 above for why the
+    // decision itself must come from a state read AFTER the await.
+    if !BATCHES.with(|b| b.borrow().contains_key(&root_hex)) {
+        return Err(format!("no batch with root {root_hex} is on record"));
+    }
 
     let call_result: ic_cdk::api::call::CallResult<(Result<String, String>,)> = ic_cdk::call(
         cfg.anchor_signer_principal,
@@ -308,12 +416,17 @@ pub async fn request_anchor(root_hex: String) -> Result<String, String> {
         }
     };
 
-    let next_state = decide_anchor_request(&batch.anchor_state, txid.clone())?;
+    // ── RE-READ THE CURRENT STATE, DECIDE, AND WRITE — ONE BORROW. ──
     BATCHES.with(|b| {
-        if let Some(batch) = b.borrow_mut().get_mut(&root_hex) {
-            batch.anchor_state = next_state;
-        }
-    });
+        let mut batches = b.borrow_mut();
+        let batch = batches
+            .get_mut(&root_hex)
+            .ok_or_else(|| format!("no batch with root {root_hex} is on record"))?;
+        let next_state = decide_anchor_request(&batch.anchor_state, txid.clone())?;
+        batch.anchor_state = next_state;
+        Ok::<(), String>(())
+    })?;
+
     Ok(txid)
 }
 
