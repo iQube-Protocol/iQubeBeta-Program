@@ -5,10 +5,22 @@ on a machine with `dfx` installed and a funded IC identity — the executing
 agent's sandbox has neither `dfx` nor a cycles wallet nor testnet4 BTC, so
 this runbook exists precisely to hand off the credentialed steps cleanly.
 
-**Pinned source**: commit `a455f47d5a120bad462e6ba96a7600d35afa56b2` on
-`iQube-Protocol/iQubeBeta-Program`. Every build below must be run from a
-checkout at exactly this commit — `git checkout a455f47d5a120bad462e6ba96a7600d35afa56b2`
-(or a branch whose tip is that commit) before building anything.
+**Pinned source**: commit `32fff4b7d5df82d9e8f1658dc9cf255e829bcab1` is the
+FLOOR — it is the first commit to carry `proof_of_state_v2`'s `dfx.json`
+registration. It is NOT sufficient by itself: `a455f47d5a120bad462e6ba96a7600d35afa56b2`
+(the last PoS v2 *code* commit) predates it and must never be used as the
+runbook checkout, because it lacks the dfx registration and all CAP-1
+tooling entirely. This correction (the commit that introduced this exact
+paragraph, the corrected Step 9, the split A4 claims, the 3-receipt
+ceremony, and portable hashing) supersedes `32fff4b` as the actual pin.
+Confirm the exact hash before building:
+
+```bash
+git log -1 --format=%H -- docs/runbooks/cap1-testnet-anchor-proof.md scripts/cap1 dfx.json
+```
+
+Use THAT hash for `git checkout` below — do not hardcode a hash from this
+paragraph once a newer correction has landed.
 
 **Scope discipline**: this ceremony does NOT set `POS_LEG_SUBMISSION_ENABLED`,
 apply any migration, touch `canisters/proof_of_state` (`n2hhv`), or repair
@@ -18,8 +30,23 @@ small, real ceremony through them.
 Scripts referenced below live in `scripts/cap1/` in this repo and have
 each been validated against an independent, published source before being
 committed (BIP-173's own bech32 test vectors; BIP-143's own worked segwit
-transaction; the `pos_core` Merkle oracle already verified in Rust) — see
-each script's own docstring for exactly what was checked.
+transaction; the `pos_core` Merkle oracle already verified in Rust; the
+offline key-derivation vectors described in Step 9) — see each script's
+own docstring for exactly what was checked.
+
+**Portable hashing** — macOS ships `shasum -a 256`, not GNU `sha256sum`.
+Define this once per shell session and use `sha256_file <path>` everywhere
+below instead of calling either tool directly:
+
+```bash
+sha256_file() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | awk '{print $1}'
+  else
+    shasum -a 256 "$1" | awk '{print $1}'
+  fi
+}
+```
 
 ---
 
@@ -27,7 +54,7 @@ each script's own docstring for exactly what was checked.
 
 ```bash
 cd iQubeBeta-Program
-git checkout a455f47d5a120bad462e6ba96a7600d35afa56b2
+git checkout <PIN_HASH>   # see "Pinned source" above
 
 dfx canister create --network ic btc_signer_psbt
 dfx canister create --network ic proof_of_state_v2
@@ -52,21 +79,21 @@ Step 8).
 
 ```bash
 dfx build --network ic btc_signer_psbt
-sha256sum constitutional-anchor/target/wasm32-unknown-unknown/release/btc_signer_psbt.wasm
+sha256_file constitutional-anchor/target/wasm32-unknown-unknown/release/btc_signer_psbt.wasm
 # also hash whatever dfx staged for install, if different from the raw wasm:
 ls -la .dfx/ic/canisters/btc_signer_psbt/
-sha256sum .dfx/ic/canisters/btc_signer_psbt/btc_signer_psbt.wasm 2>/dev/null
-sha256sum .dfx/ic/canisters/btc_signer_psbt/btc_signer_psbt.wasm.gz 2>/dev/null
+[ -f .dfx/ic/canisters/btc_signer_psbt/btc_signer_psbt.wasm ] && sha256_file .dfx/ic/canisters/btc_signer_psbt/btc_signer_psbt.wasm
+[ -f .dfx/ic/canisters/btc_signer_psbt/btc_signer_psbt.wasm.gz ] && sha256_file .dfx/ic/canisters/btc_signer_psbt/btc_signer_psbt.wasm.gz
 
 dfx build --network ic proof_of_state_v2
-sha256sum target/wasm32-unknown-unknown/release/proof_of_state_v2.wasm
+sha256_file target/wasm32-unknown-unknown/release/proof_of_state_v2.wasm
 ls -la .dfx/ic/canisters/proof_of_state_v2/
-sha256sum .dfx/ic/canisters/proof_of_state_v2/proof_of_state_v2.wasm 2>/dev/null
-sha256sum .dfx/ic/canisters/proof_of_state_v2/proof_of_state_v2.wasm.gz 2>/dev/null
+[ -f .dfx/ic/canisters/proof_of_state_v2/proof_of_state_v2.wasm ] && sha256_file .dfx/ic/canisters/proof_of_state_v2/proof_of_state_v2.wasm
+[ -f .dfx/ic/canisters/proof_of_state_v2/proof_of_state_v2.wasm.gz ] && sha256_file .dfx/ic/canisters/proof_of_state_v2/proof_of_state_v2.wasm.gz
 ```
 
 For reference only — NOT the A4 comparison hash (see Step 8) — a plain
-`cargo build --release` from this exact commit produced, in the preflight
+`cargo build --release` from commit `a455f47` produced, in the preflight
 sandbox:
 
 | canister | raw `cargo build` wasm sha256 |
@@ -74,9 +101,13 @@ sandbox:
 | `btc_signer_psbt` | `e93d556663fffcaae7ee22b1fdd973f7a9b89c97a4550fa26d2774201bebee17` |
 | `proof_of_state_v2` | `62c3e5a2bdc161a75f6ac856a0a7b040833dad736e22ddbd6716351397920820` |
 
-**Paste back to me**: every hash `sha256sum` printed above (some `.gz`
-lines may say "No such file" depending on your dfx version — that's fine,
-just tell me which files existed).
+These are stale relative to the corrected pin (they predate `dfx.json`'s
+registration) and are kept here only as a sanity floor, never as the A4
+comparison value.
+
+**Paste back to me**: every hash printed above (some `.gz` lines may be
+skipped depending on your dfx version — that's fine, just tell me which
+files existed).
 
 ---
 
@@ -136,7 +167,25 @@ dfx canister install --network ic proof_of_state_v2 --mode install --argument \
 
 ---
 
-## Step 8 — capture deployed module hashes; compare to the deployment-build hash
+## Step 8 — TWO SEPARATE A4 claims, not one
+
+The A4 manifest (`services/ops/canisterSourceManifest.ts` in AigentZBeta)
+distinguishes two different, non-substitutable facts. Do not conflate them:
+
+- **`deploymentArtifactHashVerified`** — the artifact you staged locally in
+  Step 4 (whichever file dfx actually sent — raw `.wasm` or `.wasm.gz`,
+  determined below) has the SAME sha256 as what the IC reports installed.
+  This is achievable RIGHT NOW, in this same session, and proves only that
+  nothing was corrupted or substituted between your build and the install
+  call.
+- **`moduleHashVerifiedAgainstSource`** — a SEPARATE, independently
+  reproducible build of the SAME pinned commit, from a clean environment
+  (a fresh clone, `cargo clean`, or a different machine — anything that
+  rules out "my local cache happened to produce this"), ALSO produces that
+  exact artifact hash. This is the actual provenance claim and requires
+  the rebuild in Step 8b below — it is NEVER satisfied by Step 8a alone.
+
+**8a — deploymentArtifactHashVerified:**
 
 ```bash
 dfx canister --network ic info btc_signer_psbt
@@ -144,51 +193,135 @@ dfx canister --network ic info proof_of_state_v2
 ```
 
 Each prints a `Module hash:` line. Compare it against the Step 4 hashes —
-specifically, find WHICH Step-4 file (raw `.wasm` or `.wasm.gz`) has this
-exact hash; that tells you whether your dfx version compresses on install.
-**Do not assume** — check both file hashes from Step 4 against this
-output.
+find WHICH Step-4 file (raw `.wasm` or `.wasm.gz`) has this exact hash;
+that tells you whether your dfx version compresses on install. **Do not
+assume** — check both file hashes from Step 4 against this output.
 
-**Paste back to me**:
-- `dfx canister --network ic info` output for both canisters (full text)
-- which Step-4 file matched each one
+**Paste back to me**: the `dfx canister --network ic info` output for both
+canisters (full text), and which Step-4 file matched each one.
 
-I will refuse to call `moduleHashVerifiedAgainstSource` satisfied for any
-canister where this comparison doesn't come back as an exact match.
+**8b — moduleHashVerifiedAgainstSource (do this separately, before or after
+the ceremony — it does not block Steps 9-13):**
+
+```bash
+# In a DIFFERENT directory (or after `cargo clean` in this one):
+git clone https://github.com/iQube-Protocol/iQubeBeta-Program.git cap1-rebuild-check
+cd cap1-rebuild-check
+git checkout <PIN_HASH>
+dfx build --network ic btc_signer_psbt      # network context only selects build flags; no install happens
+sha256_file constitutional-anchor/target/wasm32-unknown-unknown/release/btc_signer_psbt.wasm
+dfx build --network ic proof_of_state_v2
+sha256_file target/wasm32-unknown-unknown/release/proof_of_state_v2.wasm
+```
+
+Compare these two hashes against the Step 8a deployed module hashes
+(matching the SAME raw-vs-gz artifact you identified in 8a — if dfx
+compresses, gzip the freshly rebuilt `.wasm` the same way before comparing,
+or compare the two raw `.wasm` hashes against each other AND separately
+confirm the gzip step is deterministic).
+
+**Paste back to me**: both rebuild hashes, and an explicit statement of
+whether each matches its corresponding Step 8a deployed hash.
+
+I will not report `moduleHashVerifiedAgainstSource: true` for a canister
+where 8b was skipped or did not match, even if 8a matched.
 
 ---
 
-## Step 9 — derive the signer's testnet4 funding address OFF-CANISTER
+## Step 9 — derive the signer's testnet4 funding public key and address, OFFLINE
 
-No failed anchor call, no code change. `ecdsa_public_key` is a
-public-derivation-material lookup — it can be queried for `<SIGNER_PRINCIPAL>`
-by ANY caller, not only by the canister itself, using the exact
-`derivation_path`/`key_id` the canister uses internally
-(`DERIVATION_PATH_DEFAULT = [b"constitutional-anchor-v2"]`,
-`ecdsa_key_name = "test_key_1"`):
+**Correction**: external `dfx` ingress CANNOT call the management
+canister's `ecdsa_public_key` — that method only accepts calls arriving
+from another canister's inter-canister-call context, not from an
+externally-authenticated dfx identity's ingress message. There is no
+management-canister call to make here at all.
+
+Instead, the derivation is reproduced entirely OFFLINE using
+[`@dfinity/ic-pub-key`](https://www.npmjs.com/package/@dfinity/ic-pub-key)
+— DFINITY's own TypeScript port of the `ic_secp256k1` crate the IC replica
+itself uses for this derivation. No secret is involved in deriving a
+public key from a public master key, so this needs no live call, no
+failed-anchor discovery, and no code change.
+
+**9a — install and cross-check the tooling BEFORE trusting it for a real principal:**
 
 ```bash
-dfx canister call aaaaa-aa ecdsa_public_key --network ic \
-  '(record {
-     canister_id = opt principal "<SIGNER_PRINCIPAL>";
-     derivation_path = vec { blob "constitutional-anchor-v2" };
-     key_id = record { curve = variant { secp256k1 }; name = "test_key_1" }
-   })'
+cd scripts/cap1/js
+npm install
+node verify_derivation_vector.mjs
 ```
 
-This returns `(record { public_key = blob "..."; chain_code = blob "..." })`.
-Take the `public_key` blob, render it as hex (33 bytes / 66 hex chars), then:
+Must print `PASS` for both checks. The first reproduces DFINITY's own
+published test vector (shipped inside `@dfinity/ic-pub-key`'s test suite);
+the second reproduces the EXACT derivation shape `btc_signer_psbt` uses
+(canister-principal prefix + the single literal component
+`"constitutional-anchor-v2"`) against a value independently cross-checked
+during CAP-1 preflight via the canonical Rust `ic_secp256k1` crate — see
+below to reproduce that cross-check yourself:
 
 ```bash
-python3 scripts/cap1/derive_testnet_address.py <PUBLIC_KEY_HEX>
+# Optional but recommended: independent Rust-side reproduction of the
+# SAME shape-matching vector verify_derivation_vector.mjs checks (npm
+# install may warn about Node >=24; @dfinity/ic-pub-key ran successfully
+# on Node 22.22.2 during CAP-1 preflight despite that declared minimum).
+mkdir -p /tmp/cap1-rust-check/src && cd /tmp/cap1-rust-check
+cat > Cargo.toml <<'EOF'
+[package]
+name = "cap1-rust-check"
+version = "0.1.0"
+edition = "2021"
+[dependencies]
+ic-secp256k1 = "0.1"
+hex = "0.4"
+EOF
+cat > src/main.rs <<'EOF'
+use ic_secp256k1::{DerivationPath, PublicKey};
+fn main() {
+    let master = PublicKey::deserialize_sec1(
+        &hex::decode("02f9ac345f6be6db51e1c5612cddb59e72c3d0d493c994d12035cf13257e3b1fa7").unwrap()
+    ).unwrap();
+    let canister_id = hex::decode("0000000001b0655c0101").unwrap(); // h5jwf-5iaaa-aaaan-qmvoa-cai
+    let path = DerivationPath::from_canister_id_and_path(
+        &canister_id, &[b"constitutional-anchor-v2".to_vec()]
+    );
+    let (derived, _cc) = master.derive_subkey_with_chain_code(&path, &[0u8; 32]);
+    println!("{}", hex::encode(derived.serialize_sec1(true)));
+}
+EOF
+cargo run --quiet
+# expected: 02d33b814b589e3d9eda827960360cfec546d6ace9ca82aa15b3839be81ba73963
+```
+
+**9b — derive the REAL signer's public key**, substituting `<SIGNER_PRINCIPAL>`
+from Step 3:
+
+```bash
+node derive_signer_pubkey.mjs <SIGNER_PRINCIPAL>
+```
+
+This reproduces exactly what `btc_signer_psbt::own_pubkey()` gets from the
+real `ecdsa_public_key` call: `canister_id: None` in the canister's own
+Candid args means the IC implicitly prefixes the derivation path with the
+CALLING canister's own principal (here, the signer, once deployed) —
+`derive_signer_pubkey.mjs` supplies that prefix explicitly via
+`DerivationPath.withCanisterPrefix(signerPrincipal, ...)`, and appends the
+single component `"constitutional-anchor-v2"`
+(`DERIVATION_PATH_DEFAULT` in the Rust source), under the `"test_key_1"`
+master key (matching the `ecdsa_key_name` installed in Step 5).
+
+**9c — derive the P2WPKH address:**
+
+```bash
+cd ../
+python3 derive_testnet_address.py <PUBLIC_KEY_HEX_FROM_9b>
 ```
 
 This script's bech32 encoder was verified against BIP-173's own published
-mainnet AND testnet test vectors before being committed (see the script's
-docstring / this session's verification trail) — it is not a from-memory
-reimplementation trusted on faith.
+mainnet AND testnet test vectors before being committed.
 
-**Paste back to me**: the public key hex and the derived `tb1...` address.
+**Paste back to me**: the 9a PASS/PASS output (and the Rust cross-check
+output if you ran it), the 9b public key + chain code, and the 9c derived
+`tb1...` address.
 
 ---
 
@@ -210,28 +343,38 @@ confirmation, matching `min_confirmations = 1`).
 
 ---
 
-## Step 11 — the CAP-1 ceremony (as `cap1-operator`)
+## Step 11 — the CAP-1 ceremony: THREE receipts, ONE batch, ONE anchor (as `cap1-operator`)
 
-Pick H. Any 64-hex-char value works; a reproducible, meaningful one for
-the evidence bundle:
+Three deterministic H values, so the batch actually exercises Merkle
+combination (not a trivial single-leaf tree) and includes one PROMOTED
+(odd) leaf:
 
 ```bash
-H=$(python3 -c "import hashlib; print(hashlib.sha256(b'CAP-1 constitutional anchor proof a455f47').hexdigest())")
-echo "$H"
+H1=$(python3 -c "import hashlib; print(hashlib.sha256(b'CAP-1 constitutional anchor proof 2026-08-08 #1').hexdigest())")
+H2=$(python3 -c "import hashlib; print(hashlib.sha256(b'CAP-1 constitutional anchor proof 2026-08-08 #2').hexdigest())")
+H3=$(python3 -c "import hashlib; print(hashlib.sha256(b'CAP-1 constitutional anchor proof 2026-08-08 #3').hexdigest())")
+echo "H1=$H1"
+echo "H2=$H2"
+echo "H3=$H3"
 ```
 
 ```bash
-dfx canister call proof_of_state_v2 issue_receipt "(\"$H\")" --network ic --identity cap1-operator
+dfx canister call proof_of_state_v2 issue_receipt "(\"$H1\")" --network ic --identity cap1-operator
+dfx canister call proof_of_state_v2 issue_receipt "(\"$H2\")" --network ic --identity cap1-operator
+dfx canister call proof_of_state_v2 issue_receipt "(\"$H3\")" --network ic --identity cap1-operator
 
 dfx canister call proof_of_state_v2 batch_now "()" --network ic --identity cap1-operator
-# capture root_hex from the returned BatchV2
+# capture root_hex; confirm h_hexes == [H1, H2, H3] in that exact order
+# (PENDING is FIFO by issuance — pos_core's 3-leaf tree makes H1,H2 an
+# ordinary pair and PROMOTES H3, the odd one, unchanged to the next layer)
 
 dfx canister call proof_of_state_v2 request_anchor "(\"<ROOT_HEX>\")" --network ic --identity cap1-operator
-# capture the returned txid
+# capture the returned txid — this is ONE anchor call for the WHOLE batch
 ```
 
-**Paste back to me**: H, the full `issue_receipt` response, the full
-`batch_now` response (root_hex + h_hexes), the txid from `request_anchor`.
+**Paste back to me**: H1, H2, H3, the full `issue_receipt` responses, the
+full `batch_now` response (root_hex + h_hexes in order), the txid from
+`request_anchor`.
 
 ---
 
@@ -270,31 +413,40 @@ curl -sS https://mempool.space/testnet4/api/blocks/tip/height
 `confirmations = tip_height - block_height + 1`. Neither PoS nor the
 signer's own self-report may substitute for these two curl calls.
 
-**12d — walk backward from the transaction to H and recompute the root**:
+**12d — walk backward from the transaction to H1 (the target) AND H3 (the
+promoted leaf), and recompute the root for both:**
 
 ```bash
 dfx canister call proof_of_state_v2 get_batch "(\"<ROOT_HEX>\")" --network ic --identity cap1-operator
-dfx canister call proof_of_state_v2 get_receipt "(\"$H\")" --network ic --identity cap1-operator
+dfx canister call proof_of_state_v2 get_receipt "(\"$H1\")" --network ic --identity cap1-operator
+dfx canister call proof_of_state_v2 get_receipt "(\"$H3\")" --network ic --identity cap1-operator
 ```
 
-From `get_receipt`'s `inclusion_proof` field, build the JSON array
+`get_receipt("$H1")`'s `inclusion_proof` must be NON-EMPTY (two
+`Sibling` steps for a 3-leaf tree). `get_receipt("$H3")`'s `inclusion_proof`
+must contain a `Promoted` step — H3 is the odd leaf a 3-element tree
+promotes unchanged at the leaf layer.
+
+From each `inclusion_proof` field, build the JSON array
 `verify_inclusion_proof.py` expects (each `Sibling{hash_hex; side}` /
 `Promoted` variant maps directly — see the script's docstring for the
 exact shape), then:
 
 ```bash
-python3 scripts/cap1/verify_inclusion_proof.py "$H" /tmp/proof.json "<ROOT_HEX>"
+python3 scripts/cap1/verify_inclusion_proof.py "$H1" /tmp/proof_h1.json "<ROOT_HEX>"
+python3 scripts/cap1/verify_inclusion_proof.py "$H3" /tmp/proof_h3.json "<ROOT_HEX>"
 ```
 
-Must print `ROOT MATCHES: True`, and `<ROOT_HEX>` here must be the SAME 32
-bytes `verify_op_return.py` (12b) confirmed are actually in the OP_RETURN —
-this is the full loop closing: Bitcoin transaction → OP_RETURN root → PoS
-`get_batch` → H → `get_receipt` → inclusion proof → recomputed root →
-back to the Bitcoin bytes.
+Both must print `ROOT MATCHES: True`, and `<ROOT_HEX>` here must be the
+SAME 32 bytes `verify_op_return.py` (12b) confirmed are actually in the
+OP_RETURN — this is the full loop closing: Bitcoin transaction →
+OP_RETURN root → PoS `get_batch` → H → `get_receipt` → inclusion proof →
+recomputed root → back to the Bitcoin bytes, for both a normal leaf and
+the promoted one.
 
 **Paste back to me**: all of 12a–12d's raw outputs (the mempool.space JSON
-responses, both scripts' full stdout, and the `get_batch`/`get_receipt`
-Candid responses).
+responses, both scripts' full stdout for both H1 and H3, and the
+`get_batch`/`get_receipt` Candid responses).
 
 ---
 
@@ -322,18 +474,22 @@ dfx canister call proof_of_state_v2 get_batch "(\"<ROOT_HEX>\")" --network ic --
 
 I will:
 1. Independently re-run `verify_op_return.py` and `verify_inclusion_proof.py`
-   myself against the raw data you paste (not just read your summary).
-2. Assemble the CAP-1 evidence bundle (H, leaf, proof, root, txid, raw tx,
-   block hash/height, confirmation depth, both principals, both module-hash
-   comparisons, source commit, deployment config, independent-verifier
-   result).
+   (for both H1 and H3) myself against the raw data you paste — not just
+   read your summary.
+2. Assemble the CAP-1 evidence bundle (H1/H2/H3, leaves, both proofs, root,
+   txid, raw tx, block hash/height, confirmation depth, both principals,
+   `deploymentArtifactHashVerified` AND `moduleHashVerifiedAgainstSource`
+   recorded as the two SEPARATE claims Step 8 produced, source commit,
+   deployment config, independent-verifier result).
 3. Report PASS/FAIL.
 4. Only then touch `iQube-Protocol/AigentZBeta/services/ops/canisterSourceManifest.ts`
    and `tests/canister-source-manifest.test.ts` — adding the new v2
    provenance entry distinctly (never overwriting the existing legacy
-   `btc_signer_psbt`/`proof_of_state` entries), and updating
-   `BITCOIN_PATH_CANISTERS` to the v2 path only if the module-hash
-   comparison in Step 8 actually matched.
+   `btc_signer_psbt`/`proof_of_state` entries), setting
+   `moduleHashVerifiedAgainstSource` ONLY if Step 8b's independent rebuild
+   actually matched (never from Step 8a alone), and updating
+   `BITCOIN_PATH_CANISTERS` to the v2 path only if that stronger claim
+   holds for both canisters.
 
 `POS_LEG_SUBMISSION_ENABLED` stays `false`. No migration. `n2hhv` stays
 untouched. No historical receipt is repaired. Nothing beyond this one CAP-1

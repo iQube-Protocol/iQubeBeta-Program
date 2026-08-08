@@ -1,0 +1,13 @@
+{
+  "name": "cap1-offline-key-derivation",
+  "private": true,
+  "type": "module",
+  "description": "CAP-1 offline threshold-ECDSA public key derivation (no IC ingress call). See docs/runbooks/cap1-testnet-anchor-proof.md.",
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "@dfinity/ic-pub-key": "^1.0.1",
+    "@dfinity/principal": "^3.4.3"
+  }
+}

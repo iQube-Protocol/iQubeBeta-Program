@@ -1,11 +1,26 @@
 {
   "_comment": "CAP-1 evidence bundle. Fill in every null after the runbook's steps complete. Do not fill a field from self-report where the runbook specifies an independent source.",
+  "pinned_source_commit": null,
   "ceremony": {
-    "H": null,
-    "leaf_hex": null,
-    "inclusion_proof": null,
-    "root_hex": null,
-    "txid": null
+    "batch": {
+      "H1_target": null,
+      "H2": null,
+      "H3_promoted_leaf": null,
+      "leaf_hex_H1": null,
+      "leaf_hex_H3": null,
+      "root_hex": null,
+      "txid": null
+    },
+    "inclusion_proofs": {
+      "H1_target": {
+        "proof": null,
+        "note": "must be non-empty (two Sibling steps in a 3-leaf tree)"
+      },
+      "H3_promoted_leaf": {
+        "proof": null,
+        "note": "must contain a Promoted step — H3 is the odd leaf a 3-element tree promotes unchanged"
+      }
+    }
   },
   "bitcoin_evidence": {
     "raw_transaction_hex": null,
@@ -17,11 +32,12 @@
   },
   "independent_verification": {
     "verify_op_return_result": null,
-    "verify_inclusion_proof_result": null,
+    "verify_inclusion_proof_result_H1": null,
+    "verify_inclusion_proof_result_H3": null,
+    "offline_key_derivation_vector_check_result": null,
     "bitcoin_core_decoderawtransaction_result_if_available": null
   },
   "deployment": {
-    "source_commit": "a455f47d5a120bad462e6ba96a7600d35afa56b2",
     "signer_canister": {
       "principal": null,
       "network": "testnet",
@@ -29,7 +45,9 @@
       "authorized_pos_principal": null,
       "deployment_build_wasm_sha256": null,
       "deployed_module_hash": null,
-      "module_hash_verified_against_source": null
+      "deploymentArtifactHashVerified": null,
+      "moduleHashVerifiedAgainstSource": null,
+      "independent_rebuild_wasm_sha256": null
     },
     "pos_v2_canister": {
       "principal": null,
@@ -39,8 +57,11 @@
       "min_confirmations": 1,
       "deployment_build_wasm_sha256": null,
       "deployed_module_hash": null,
-      "module_hash_verified_against_source": null
-    }
+      "deploymentArtifactHashVerified": null,
+      "moduleHashVerifiedAgainstSource": null,
+      "independent_rebuild_wasm_sha256": null
+    },
+    "_a4_note": "deploymentArtifactHashVerified = the Step-4 staged artifact hash matches the deployed module hash (achievable immediately). moduleHashVerifiedAgainstSource = a SEPARATE, clean, independently reproduced rebuild (Step 8b) ALSO matches. Never set the second from the first alone."
   },
   "reconciliation": {
     "record_confirmation_caller_principal": null,
