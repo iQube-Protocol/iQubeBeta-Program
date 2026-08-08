@@ -2,7 +2,8 @@
 resolver = "2"
 members = [
     "canisters/proof_of_state",
-    "canisters/btc_signer_psbt", 
+    "canisters/btc_signer_psbt",
+    "canisters/btc_anchor_core",
     "canisters/cross_chain_service",
     "canisters/evm_rpc",
     "canisters/solana_signer_ed25519",

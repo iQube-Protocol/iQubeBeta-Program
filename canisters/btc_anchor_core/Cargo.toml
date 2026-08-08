@@ -1,0 +1,27 @@
+# Constitutional Anchor v2 — PURE core.
+#
+# Split out of `btc_signer_psbt` deliberately. The canister crate is a `cdylib`
+# carrying IC symbol exports, which cannot be linked into a host test binary —
+# so as long as the Bitcoin logic lived there, the anchoring FORMAT could only
+# be exercised on a replica. That is precisely the condition that let
+# `raw_tx = "signed_tx_<hex>"` ship unchallenged: no host test could reach it.
+#
+# An rlib with no ic-cdk dependency makes every byte of the transaction
+# construction regression-testable on the host, which is what BT-3's original
+# failure message demanded.
+[package]
+name = "btc_anchor_core"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+hex = "0.4"
+sha2 = "0.10"
+ripemd = "0.1"
+bech32 = "0.9"
+
+[dev-dependencies]
+futures = "0.3"

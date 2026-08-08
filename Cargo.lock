@@ -59,10 +59,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "btc_anchor_core"
+version = "0.1.0"
+dependencies = [
+ "bech32",
+ "futures",
+ "hex",
+ "ripemd",
+ "sha2",
+]
+
+[[package]]
 name = "btc_signer_psbt"
 version = "0.1.0"
 dependencies = [
  "bech32",
+ "btc_anchor_core",
  "candid",
  "futures",
  "hex",
