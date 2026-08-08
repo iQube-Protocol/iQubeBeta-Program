@@ -1,0 +1,25 @@
+# Proof of State v2 — PURE Merkle-tree and anchor-state core.
+#
+# Split out the same way `btc_anchor_core` was for Constitutional Anchor v2
+# (see `constitutional-anchor/btc_anchor_core/Cargo.toml`): the canister crate
+# is a `cdylib` carrying IC symbol exports and cannot be linked into a host
+# test binary. Every rule in the H -> leaf -> Merkle tree -> inclusion proof
+# -> root pipeline, and the Broadcast-is-not-Anchored state machine, needs to
+# live somewhere host-testable or Phase P's acceptance contract cannot be
+# regression-tested at all.
+#
+# Deliberately CDK-free (no ic-cdk dependency of any kind, any version) —
+# `core_stays_cdk_free`-style canary in acceptance_tests.rs enforces this.
+[package]
+name = "pos_core"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+hex = "0.4"
+sha2 = "0.10"
+candid = { workspace = true }
+serde = { workspace = true }

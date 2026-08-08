@@ -1,0 +1,27 @@
+# Proof of State v2 — Phase P.
+#
+# Stays on the root workspace's ic-cdk 0.13, deliberately. It calls
+# Constitutional Anchor v2 (`btc_signer_psbt`, isolated in the
+# `constitutional-anchor` workspace on ic-cdk 0.20) ONLY across the IC
+# message boundary — a governed `Principal` + `ic_cdk::call`, plain Candid
+# over the wire — never as a Rust dependency. There is therefore no
+# `ic-cdk-executor` `links`-key conflict to isolate against here: this
+# canister does not need `ic-cdk-bitcoin-canister` or any other 0.20-only
+# crate, so it does not need a separate workspace either.
+[package]
+name = "proof_of_state_v2"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+candid = { workspace = true }
+ic-cdk = { workspace = true }
+serde = { workspace = true }
+hex = "0.4"
+pos_core = { path = "../pos_core" }
+
+[dev-dependencies]
+futures = "0.3"

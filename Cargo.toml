@@ -10,7 +10,9 @@ members = [
     "canisters/cross_chain_service",
     "canisters/evm_rpc",
     "canisters/solana_signer_ed25519",
-    "canisters/reputation_qube"
+    "canisters/reputation_qube",
+    "canisters/pos_core",
+    "canisters/proof_of_state_v2"
 ]
 
 [workspace.dependencies]

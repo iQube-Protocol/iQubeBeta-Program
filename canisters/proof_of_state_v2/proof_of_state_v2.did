@@ -1,0 +1,93 @@
+type BatchAnchorState = variant {
+  Anchored : record {
+    confirmations : nat32;
+    txid : text;
+    block_height : nat64;
+  };
+  AnchorRequested : record { txid : text };
+  Unanchored;
+};
+type BatchV2 = record {
+  h_hexes : vec text;
+  anchor_state : BatchAnchorState;
+  created_at_ns : nat64;
+  root_hex : text;
+};
+type InitArg = record {
+  authorized_reconciler_principal : principal;
+  anchor_signer_principal : principal;
+  min_confirmations : nat32;
+};
+type ProofStep = variant {
+  Sibling : record { hash_hex : text; side : Side };
+  Promoted;
+};
+type ReceiptV2 = record {
+  h_hex : text;
+  leaf_hex : text;
+  issued_at_ns : nat64;
+  inclusion_proof : vec ProofStep;
+  batch_root_hex : opt text;
+};
+type Result = variant { Ok : BatchV2; Err : text };
+type Result_1 = variant { Ok : ReceiptV2; Err : text };
+type Result_2 = variant { Ok : BatchAnchorState; Err : text };
+type Result_3 = variant { Ok : text; Err : text };
+type Result_4 = variant { Ok : bool; Err : text };
+type Side = variant { Left; Right };
+service : (InitArg) -> {
+  // Drain every pending receipt into one Merkle batch: H -> leaf -> tree ->
+  // inclusion proof -> root (`pos_core::build_batch`, the whole pipeline in
+  // one call). Every involved receipt is updated with its `batch_root_hex`
+  // and its own verifiable `inclusion_proof` — never left as an empty,
+  // unverifiable placeholder.
+  batch_now : () -> (Result);
+  get_batch : (text) -> (opt BatchV2) query;
+  // Read the configuration. No secrets — the principals and the
+  // confirmation threshold are public facts about the deployment.
+  get_config : () -> (opt record { text; text; nat32 }) query;
+  get_pending_count : () -> (nat64) query;
+  get_receipt : (text) -> (opt ReceiptV2) query;
+  // `issue_receipt(H)` — IDEMPOTENT BY H. The legacy canister minted
+  // `format!("receipt_{}", ic_cdk::api::time())` on every call, so the same
+  // H issued twice produced two distinct, unrelated receipts. Here the
+  // canonical-H-keyed lookup happens BEFORE any new receipt is constructed,
+  // and `pos_core::decide_issue_receipt` owns the actual idempotency rule —
+  // this function only applies it.
+  issue_receipt : (text) -> (Result_1);
+  // Record confirmation/reconciliation evidence for `root_hex` — the ONLY
+  // path to `BatchAnchorState::Anchored`.
+  // 
+  // GATED TO THE AUTHORIZED RECONCILER, checked BEFORE any state is
+  // consulted or written — the same discipline `btc_signer_psbt::
+  // authorize_anchor_caller` uses. `block_height`/`confirmations` are
+  // PARAMETERS supplied by the caller's own evidence — never a literal in
+  // this function, unlike the legacy `btc_block_height: Some(800000)`.
+  // 
+  // Wiring this evidence to a LIVE query of Bitcoin's own confirmation depth
+  // (rather than trusting whatever the caller supplies) is the live testnet
+  // CAP-1 Constitutional Anchor Proof — the next gate, not this phase.
+  record_confirmation : (text, text, nat64, nat32) -> (Result_2);
+  // Request an anchor for `root_hex` from Constitutional Anchor v2.
+  // 
+  // THE SIGNER IS REACHED ONLY THROUGH GOVERNED CONFIG. `cfg.
+  // anchor_signer_principal` is read from `CONFIG` — never a literal, unlike
+  // the legacy `anchor()`'s `btc_canister_id = "uxrrr-q7777-77774-qaaaq-cai"`.
+  // 
+  // NO SYNTHETIC TXID. The legacy `anchor()` fell back to
+  // `Ok(format!("mock_btc_txid_{}", …))` on ANY call failure. This function
+  // returns a txid ONLY when Constitutional Anchor v2 itself returns one —
+  // every other outcome, whether the signer refused or the call itself
+  // failed, is a truthful `Err` naming which.
+  // 
+  // THIS NEVER WRITES `Anchored`. `decide_anchor_request` (pos_core) can
+  // only ever produce `Unanchored -> AnchorRequested` (or reconcile a retry
+  // against an existing `AnchorRequested`/`Anchored` of the SAME txid) — see
+  // its own docs for why. Reaching `Anchored` requires `record_confirmation`,
+  // a wholly separate call.
+  request_anchor : (text) -> (Result_3);
+  // Replay a receipt's own stored inclusion proof against its batch's own
+  // recorded root. This is "every receipt stores a VERIFIABLE inclusion
+  // path" made checkable, not merely asserted.
+  verify_receipt : (text) -> (Result_4) query;
+}
