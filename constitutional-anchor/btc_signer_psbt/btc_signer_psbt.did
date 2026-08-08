@@ -62,6 +62,18 @@ service : (InitArg) -> {
   // fresh ceremony, so a canister trap, upgrade, or ambiguous resumption
   // between signing and broadcast leaves durable evidence of exactly which
   // transaction to rebroadcast — never a reason to sign a second one.
+  // 
+  // ── THE RESERVATION IS RE-CHECKED AFTER THE CEREMONY'S AWAITS (P0.3.1) ──
+  // 
+  // `attempt_id` identifies THIS invocation's own reservation. A same-root
+  // retry can no longer slip in while this ceremony is suspended —
+  // `decide_anchor_attempt` now refuses that outright — but an explicit
+  // stale-recovery act could still supersede this reservation while the
+  // ceremony is off awaiting `bitcoin_get_utxos`/`sign_with_ecdsa`. Before
+  // writing ANY outcome (`Signed` or `Failed`) this function re-checks, via
+  // `reservation_matches`, that it still holds the SAME `attempt_id` it
+  // started with — never writing over whatever a fresh ceremony (a different
+  // `attempt_id`) may have since reserved, signed, or broadcast for this root.
   create_and_broadcast_anchor : (text, nat64) -> (Result);
   get_address_info : (text) -> (opt BitcoinAddress) query;
   get_all_addresses : () -> (vec BitcoinAddress) query;

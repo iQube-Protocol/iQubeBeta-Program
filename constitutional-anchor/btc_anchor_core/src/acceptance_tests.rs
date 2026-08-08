@@ -632,13 +632,17 @@ fn signed_state(txid: &str, raw_tx: &str) -> AnchorAttemptState {
     }
 }
 
+fn reserved_state(attempt_id: &str, reserved_at_ns: u64) -> AnchorAttemptState {
+    AnchorAttemptState::Reserved { attempt_id: attempt_id.to_string(), reserved_at_ns }
+}
+
 /// Two concurrent anchor attempts for DIFFERENT roots cannot both proceed —
 /// the second must be refused, naming which root is active, whether the first
 /// is merely `Reserved` or has already progressed to `Signed`.
 #[test]
 fn p03_concurrent_reservation_for_a_different_root_is_rejected() {
     let mut attempts: BTreeMap<String, AnchorAttemptState> = BTreeMap::new();
-    attempts.insert("root-a".to_string(), AnchorAttemptState::Reserved);
+    attempts.insert("root-a".to_string(), reserved_state("attempt-a", 0));
 
     assert_eq!(
         decide_anchor_attempt("root-b", &attempts),
@@ -728,15 +732,22 @@ fn p03_a_failure_before_signing_permits_a_controlled_retry() {
         "a root whose ceremony failed before a signed transaction existed must be retryable"
     );
 
-    // A bare Reserved with no further progress — the ceremony was
-    // interrupted between reserving and signing — is the same case: nothing
-    // was spent, so resuming fresh is exactly as safe as Failed.
-    attempts.insert("root-a".to_string(), AnchorAttemptState::Reserved);
+    // A bare Reserved with no further progress is NOT the same case as
+    // Failed (P0.3.1, independent review, 2026-08-08 — corrects the
+    // assumption this test originally made here). Ordinary retry traffic
+    // cannot tell "interrupted between reserving and signing, genuinely
+    // stranded" apart from "still legitimately in flight, just slow" — so
+    // decide_anchor_attempt must refuse a same-root retry against Reserved
+    // exactly like a different root's active reservation. See
+    // p03_1_same_root_reserved_refuses_a_concurrent_request_for_that_root
+    // below for the dedicated test, and decide_stale_recovery for the
+    // separate, explicit path that DOES eventually free a stranded root.
+    attempts.insert("root-a".to_string(), reserved_state("attempt-a", 0));
     assert_eq!(
         decide_anchor_attempt("root-a", &attempts),
-        AnchorDecision::Reserve,
-        "a stalled Reserved attempt with no Signed/Broadcast progress must not strand the root forever \
-         — this is the 'no boolean-only lock that can strand silently' requirement"
+        AnchorDecision::InProgress { active_root: "root-a".to_string() },
+        "a stalled Reserved attempt must never be silently re-derived as Reserve by ordinary retry — \
+         that is exactly the reentrancy race that let two ceremonies build competing spends for one root"
     );
 
     // And a failed attempt for ONE root must never block a DIFFERENT root —
@@ -753,6 +764,122 @@ fn p03_a_failure_before_signing_permits_a_controlled_retry() {
     );
 }
 
+// ───────────────────────────────────────────────────────────────────────────
+// P0.3.1 — close the same-root reentrancy race (independent review, 2026-08-08)
+// ───────────────────────────────────────────────────────────────────────────
+//
+// WAS RED against P0.3: `decide_anchor_attempt` let a SAME-ROOT `Reserved`
+// fall through to the cross-root check, which returned `Reserve` whenever no
+// OTHER root was active. Because `create_and_broadcast_anchor` inserts
+// `Reserved` synchronously before its first network await, a second request
+// for the SAME root — arriving while the first ceremony is still suspended
+// on that await — would see `Reserved`, get `Reserve` back, and start a
+// SECOND UTXO-fetch/signing ceremony racing the first to spend the same
+// inputs. That breaks "one active Bitcoin spend at a time" exactly as
+// thoroughly as the cross-root race P0.3 closed.
+
+/// Call A reserves root H; a concurrent call B for the SAME root H must be
+/// refused with `ANCHOR_IN_PROGRESS`, identically to how a different root's
+/// active reservation is refused — never re-derived as `Reserve`.
+#[test]
+fn p03_1_same_root_reserved_refuses_a_concurrent_request_for_that_root() {
+    let mut attempts: BTreeMap<String, AnchorAttemptState> = BTreeMap::new();
+    // Call A's reservation, taken synchronously before its first await.
+    attempts.insert("root-h".to_string(), reserved_state("attempt-a", 1_000));
+
+    // Call B, for the SAME root, while A's ceremony is still suspended.
+    let decision = decide_anchor_attempt("root-h", &attempts);
+    assert_eq!(
+        decision,
+        AnchorDecision::InProgress { active_root: "root-h".to_string() },
+        "a same-root Reserved attempt must refuse a concurrent request for that SAME root, exactly \
+         like a different root's active reservation — falling through to Reserve here is the race \
+         that let two ceremonies build competing spends for one root"
+    );
+    assert_ne!(
+        decision,
+        AnchorDecision::Reserve,
+        "a live Reserved attempt must never be re-derived as a fresh reservation by ordinary retry \
+         traffic — only the separate, explicit stale-recovery path (decide_stale_recovery) may clear it"
+    );
+}
+
+/// A DIFFERENT root's concurrent request remains refused after this fix too
+/// — the same-root case above is an ADDITION to `decide_anchor_attempt`'s
+/// exclusivity, not a replacement of the cross-root check. This mirrors
+/// `p03_concurrent_reservation_for_a_different_root_is_rejected` deliberately,
+/// pinned again here so the two guarantees are visibly tested side by side.
+#[test]
+fn p03_1_different_root_concurrent_request_remains_refused() {
+    let mut attempts: BTreeMap<String, AnchorAttemptState> = BTreeMap::new();
+    attempts.insert("root-a".to_string(), reserved_state("attempt-a", 0));
+
+    assert_eq!(
+        decide_anchor_attempt("root-b", &attempts),
+        AnchorDecision::InProgress { active_root: "root-a".to_string() },
+        "a different root must still be refused while root-a is Reserved"
+    );
+}
+
+/// Stale-reservation recovery is a SEPARATE, EXPLICIT act — never something
+/// ordinary retry traffic performs (see the two tests above) — and it must
+/// never let the ceremony it superseded go on to write `Signed` (or
+/// `Failed`) as if nothing had happened. This is the "verify the stored
+/// reservation is still that same attempt" half of the fix: once recovery
+/// supersedes an old `attempt_id`, that old ceremony — however far along its
+/// own awaits it already was — must find, on resuming, that it no longer
+/// holds the reservation it started with.
+#[test]
+fn p03_1_stale_reservation_recovery_cannot_let_the_superseded_attempt_later_sign() {
+    let mut attempts: BTreeMap<String, AnchorAttemptState> = BTreeMap::new();
+    let old_attempt_id = "attempt-old".to_string();
+    attempts.insert("root-h".to_string(), reserved_state(&old_attempt_id, 0));
+
+    // Too young to recover: refused by design — recovery must not race an
+    // in-flight ceremony that is merely slow.
+    assert!(
+        decide_stale_recovery("root-h", 1_000, 5_000, &attempts).is_err(),
+        "recovery must refuse a reservation that has not yet crossed the staleness threshold"
+    );
+
+    // Old enough now: recovery is permitted, and names the attempt it is
+    // about to supersede.
+    let recovered_attempt_id = decide_stale_recovery("root-h", 10_000, 5_000, &attempts)
+        .expect("a reservation past the staleness threshold must be recoverable");
+    assert_eq!(recovered_attempt_id, old_attempt_id);
+
+    // Apply the recovery exactly as the canister would: release the root by
+    // moving it to Failed — nothing was ever spent under Reserved, so this
+    // is as safe as any other Failed transition.
+    attempts.insert(
+        "root-h".to_string(),
+        AnchorAttemptState::Failed { reason: "recovered stale reservation".to_string() },
+    );
+
+    // The OLD ceremony's own await(s) now resolve, and it reaches the point
+    // where it would persist Signed. It must find it no longer holds the
+    // reservation it started with.
+    assert!(
+        !reservation_matches("root-h", &old_attempt_id, &attempts),
+        "a ceremony whose reservation was recovered out from under it must detect the mismatch \
+         before persisting Signed — recovery must not leave the superseded attempt free to write \
+         over whatever state comes after it"
+    );
+
+    // A fresh ceremony (a NEW attempt_id) that reserves after recovery, by
+    // contrast, is legitimately holding the root and must see a match.
+    let new_attempt_id = "attempt-new".to_string();
+    attempts.insert("root-h".to_string(), reserved_state(&new_attempt_id, 10_000));
+    assert!(
+        reservation_matches("root-h", &new_attempt_id, &attempts),
+        "the legitimate, current reservation must still be recognised as matching its own attempt_id"
+    );
+    assert!(
+        !reservation_matches("root-h", &old_attempt_id, &attempts),
+        "the superseded attempt_id must never match again, even after a fresh reservation is taken"
+    );
+}
+
 /// `AnchorAttemptState` — including the evidence needed for recovery, the
 /// exact signed `raw_tx` and the inputs it spends — must survive the SAME
 /// Candid encode/decode round trip that `ic_cdk::storage::stable_save`/
@@ -765,7 +892,7 @@ fn p03_anchor_attempt_state_survives_a_stable_memory_round_trip() {
     use candid::{Decode, Encode};
 
     let states = vec![
-        AnchorAttemptState::Reserved,
+        reserved_state("attempt-a", 1_700_000_000_000_000_000),
         signed_state("txid-a", "deadbeef"),
         AnchorAttemptState::Broadcast { txid: "txid-b".to_string() },
         AnchorAttemptState::Failed { reason: "bitcoin_get_utxos failed: transport error".to_string() },
@@ -785,7 +912,7 @@ fn p03_anchor_attempt_state_survives_a_stable_memory_round_trip() {
     // The whole map, keyed by root — the actual shape persisted — round-trips
     // too, not only a single entry in isolation.
     let mut attempts: BTreeMap<String, AnchorAttemptState> = BTreeMap::new();
-    attempts.insert("root-a".to_string(), AnchorAttemptState::Reserved);
+    attempts.insert("root-a".to_string(), reserved_state("attempt-a", 1_700_000_000_000_000_000));
     attempts.insert("root-b".to_string(), signed_state("txid-b", "beefdead"));
     let as_vec: Vec<(String, AnchorAttemptState)> = attempts.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
     let bytes = Encode!(&as_vec).expect("the persisted Vec<(String, AnchorAttemptState)> shape must encode");

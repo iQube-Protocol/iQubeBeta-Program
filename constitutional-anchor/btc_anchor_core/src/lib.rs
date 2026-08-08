@@ -611,10 +611,23 @@ pub fn validate_anchor_config(cfg: &AnchorConfig) -> Result<(), String> {
 #[derive(Clone, Debug, PartialEq, Eq, CandidType, Deserialize)]
 pub enum AnchorAttemptState {
     /// A ceremony has claimed this root and no other root may become active
-    /// until it resolves. Nothing has been signed or spent yet — a
-    /// `Reserved` entry with no further progress is exactly as safe to retry
-    /// as `Failed`.
-    Reserved,
+    /// until it resolves. Nothing has been signed or spent yet.
+    ///
+    /// `attempt_id` identifies THIS specific ceremony's claim (P0.3.1,
+    /// independent review, 2026-08-08). It is NOT safe to retry the way
+    /// `Failed` is: a same-root `Reserved` entry may simply be the ORIGINAL
+    /// caller's own ceremony, still suspended on a network await, so
+    /// `decide_anchor_attempt` refuses a same-root request against it rather
+    /// than treating it as free to reserve again (see that function's docs).
+    /// Recovering a reservation that is genuinely stranded — its ceremony
+    /// trapped, or was upgraded away — is a separate, explicit act gated on
+    /// `reserved_at_ns` (see `decide_stale_recovery`), never something
+    /// ordinary retry traffic performs. `attempt_id` is what lets a recovery
+    /// supersede a *specific* stale claim, and lets a ceremony that resumes
+    /// after its own awaits detect — via `reservation_matches` — that its
+    /// claim was the one superseded, so it never writes `Signed` (or
+    /// `Failed`) over whatever superseded it.
+    Reserved { attempt_id: String, reserved_at_ns: u64 },
     /// A transaction has been built and signed for this root. `raw_tx` is the
     /// exact bytes that must be (re)broadcast — a retry from this state must
     /// NEVER fetch new UTXOs or construct a different spend, because doing so
@@ -675,9 +688,23 @@ pub fn normalize_root_hex(root_hex: &str) -> Result<String, String> {
 ///     Never refetch UTXOs or build a second spend for a root that already
 ///     has a valid signed transaction — that is how a root would end up with
 ///     two competing spends of the same inputs.
-///   * `Reserved`, `Failed`, or no entry at all -> falls through to the
-///     cross-root check below. Nothing was ever spent under either state, so
-///     resuming from scratch is safe PROVIDED no other root is active.
+///   * `Reserved{..}` -> `InProgress { active_root: root }` (P0.3.1,
+///     independent review, 2026-08-08 — corrects the original P0.3 rule,
+///     which let this fall through to the cross-root check and return
+///     `Reserve` whenever no OTHER root was active). Because the reservation
+///     is inserted synchronously BEFORE the first network await,
+///     `create_and_broadcast_anchor` can be re-entered for the SAME root
+///     while the original ceremony is still suspended on that await — a
+///     naive fall-through would let a second request see `Reserved`, get
+///     `Reserve` back, and start a SECOND UTXO-fetch/signing ceremony racing
+///     the first to spend the same inputs. Ordinary retry traffic cannot
+///     distinguish "still legitimately in flight" from "genuinely stranded",
+///     so it must never be granted a fresh reservation either way. Only
+///     `decide_stale_recovery`, gated on elapsed time, may clear a `Reserved`
+///     entry — never this function.
+///   * `Failed` or no entry at all -> falls through to the cross-root check
+///     below. Nothing was ever spent under `Failed`, so resuming from
+///     scratch is safe PROVIDED no other root is active.
 ///
 /// ANY OTHER ROOT (checked only once the same-root cases above are ruled
 /// out): if it holds `Reserved` or `Signed` — anything short of `Broadcast`
@@ -694,17 +721,86 @@ pub fn decide_anchor_attempt(
             AnchorAttemptState::Signed { txid, raw_tx, .. } => {
                 return AnchorDecision::Rebroadcast { txid: txid.clone(), raw_tx: raw_tx.clone() };
             }
-            AnchorAttemptState::Reserved | AnchorAttemptState::Failed { .. } => {
+            AnchorAttemptState::Reserved { .. } => {
+                return AnchorDecision::InProgress { active_root: root.to_string() };
+            }
+            AnchorAttemptState::Failed { .. } => {
                 // Falls through to the cross-root exclusivity check below.
             }
         }
     }
     match attempts.iter().find(|(other_root, state)| {
         other_root.as_str() != root
-            && matches!(state, AnchorAttemptState::Reserved | AnchorAttemptState::Signed { .. })
+            && matches!(state, AnchorAttemptState::Reserved { .. } | AnchorAttemptState::Signed { .. })
     }) {
         Some((other_root, _)) => AnchorDecision::InProgress { active_root: other_root.clone() },
         None => AnchorDecision::Reserve,
+    }
+}
+
+/// Whether `attempts[root]` is STILL the exact reservation identified by
+/// `attempt_id`.
+///
+/// Called by the canister AFTER its network awaits (UTXO fetch, signing) and
+/// BEFORE it persists `Signed` or `Failed` (P0.3.1, independent review,
+/// 2026-08-08). A ceremony that resumes from an await must not assume it
+/// still holds the root it reserved — an explicit stale-recovery act (see
+/// `decide_stale_recovery`) may have superseded its reservation while it was
+/// suspended, in which case a fresh ceremony could already be `Reserved`,
+/// `Signed`, or even `Broadcast` under a DIFFERENT `attempt_id`. Writing
+/// unconditionally at that point would let the superseded ceremony clobber
+/// the current one's progress; checking first turns that into a detectable,
+/// refusable mismatch instead.
+pub fn reservation_matches(
+    root: &str,
+    attempt_id: &str,
+    attempts: &std::collections::BTreeMap<String, AnchorAttemptState>,
+) -> bool {
+    matches!(
+        attempts.get(root),
+        Some(AnchorAttemptState::Reserved { attempt_id: stored, .. }) if stored == attempt_id
+    )
+}
+
+/// Whether a POSSIBLY-STALE `Reserved` entry for `root` may be recovered
+/// right now — i.e. cleared so a fresh ceremony may reserve again.
+///
+/// EXPLICIT AND SEPARATE FROM `decide_anchor_attempt` ON PURPOSE (P0.3.1,
+/// operator ruling, 2026-08-08: "do not use normal retry to recover a
+/// possibly stale Reserved; model stale-reservation recovery separately and
+/// explicitly"). Ordinary retry traffic cannot tell a ceremony that is
+/// merely slow from one that is genuinely stranded — `decide_anchor_attempt`
+/// therefore never grants that distinction on its own. Recovery is instead a
+/// deliberate act with its own staleness threshold, applied by the caller
+/// (e.g. an operator-triggered or self-scheduled canister function) —
+/// exactly which entry point does so remains internal to `btc_signer_psbt`
+/// and is not yet part of this canister's public Candid surface.
+///
+/// Returns the `attempt_id` being recovered — for logging/audit, and for the
+/// caller to confirm against — on success.
+pub fn decide_stale_recovery(
+    root: &str,
+    now_ns: u64,
+    staleness_threshold_ns: u64,
+    attempts: &std::collections::BTreeMap<String, AnchorAttemptState>,
+) -> Result<String, String> {
+    match attempts.get(root) {
+        Some(AnchorAttemptState::Reserved { attempt_id, reserved_at_ns }) => {
+            let age_ns = now_ns.saturating_sub(*reserved_at_ns);
+            if age_ns >= staleness_threshold_ns {
+                Ok(attempt_id.clone())
+            } else {
+                Err(format!(
+                    "root {root} is Reserved but only {age_ns}ns old, below the \
+                     {staleness_threshold_ns}ns staleness threshold — refusing to recover a \
+                     reservation that may still be a legitimately in-flight ceremony"
+                ))
+            }
+        }
+        Some(other) => Err(format!(
+            "root {root} is not Reserved (currently {other:?}) — there is nothing to recover"
+        )),
+        None => Err(format!("root {root} has no anchor attempt on record — there is nothing to recover")),
     }
 }
 

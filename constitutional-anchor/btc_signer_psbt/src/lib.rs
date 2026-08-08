@@ -143,6 +143,26 @@ thread_local! {
     /// one, not merely heap state that an upgrade would silently discard.
     static ANCHOR_ATTEMPTS: std::cell::RefCell<std::collections::BTreeMap<String, AnchorAttemptState>> =
         std::cell::RefCell::new(std::collections::BTreeMap::new());
+    /// Monotonic counter combined with `ic_cdk::api::time()` to build a
+    /// unique `attempt_id` per reservation (P0.3.1, independent review,
+    /// 2026-08-08). Time alone is not sufficient: IC message execution can
+    /// advance without the system clock visibly ticking between two
+    /// reservations taken in the same round, so a bare timestamp could
+    /// collide. Heap-only and NOT persisted across upgrades — restarting the
+    /// sequence at 0 after an upgrade cannot collide with a pre-upgrade
+    /// attempt_id because `reserved_at_ns` (the wall-clock half of the pair)
+    /// only advances forward.
+    static ATTEMPT_SEQ: std::cell::RefCell<u64> = std::cell::RefCell::new(0);
+}
+
+/// A fresh, unique identifier for one reservation attempt.
+fn fresh_attempt_id(now_ns: u64) -> String {
+    let seq = ATTEMPT_SEQ.with(|c| {
+        let mut c = c.borrow_mut();
+        *c += 1;
+        *c
+    });
+    format!("{now_ns}-{seq}")
 }
 
 const DERIVATION_PATH_DEFAULT: &[&[u8]] = &[b"constitutional-anchor-v2"];
@@ -520,6 +540,18 @@ async fn run_fresh_anchor_ceremony(
 /// fresh ceremony, so a canister trap, upgrade, or ambiguous resumption
 /// between signing and broadcast leaves durable evidence of exactly which
 /// transaction to rebroadcast — never a reason to sign a second one.
+///
+/// ── THE RESERVATION IS RE-CHECKED AFTER THE CEREMONY'S AWAITS (P0.3.1) ──
+///
+/// `attempt_id` identifies THIS invocation's own reservation. A same-root
+/// retry can no longer slip in while this ceremony is suspended —
+/// `decide_anchor_attempt` now refuses that outright — but an explicit
+/// stale-recovery act could still supersede this reservation while the
+/// ceremony is off awaiting `bitcoin_get_utxos`/`sign_with_ecdsa`. Before
+/// writing ANY outcome (`Signed` or `Failed`) this function re-checks, via
+/// `reservation_matches`, that it still holds the SAME `attempt_id` it
+/// started with — never writing over whatever a fresh ceremony (a different
+/// `attempt_id`) may have since reserved, signed, or broadcast for this root.
 #[update]
 pub async fn create_and_broadcast_anchor(data_hash: String, fee_rate: u64) -> Result<String, String> {
     // ── FIRST STATEMENT. NOTHING MAY PRECEDE THIS. ──
@@ -533,11 +565,18 @@ pub async fn create_and_broadcast_anchor(data_hash: String, fee_rate: u64) -> Re
     let root = normalize_root_hex(&data_hash)?;
 
     // ── ATOMIC DECISION + RESERVATION. STILL BEFORE THE FIRST AWAIT. ──
+    let now_ns = ic_cdk::api::time();
+    let mut reserved_attempt_id: Option<String> = None;
     let decision = ANCHOR_ATTEMPTS.with(|a| {
         let mut attempts = a.borrow_mut();
         let decision = decide_anchor_attempt(&root, &attempts);
         if matches!(decision, AnchorDecision::Reserve) {
-            attempts.insert(root.clone(), AnchorAttemptState::Reserved);
+            let attempt_id = fresh_attempt_id(now_ns);
+            attempts.insert(
+                root.clone(),
+                AnchorAttemptState::Reserved { attempt_id: attempt_id.clone(), reserved_at_ns: now_ns },
+            );
+            reserved_attempt_id = Some(attempt_id);
         }
         decision
     });
@@ -575,15 +614,36 @@ pub async fn create_and_broadcast_anchor(data_hash: String, fee_rate: u64) -> Re
         }
     }
 
+    let attempt_id = reserved_attempt_id.expect("AnchorDecision::Reserve always sets reserved_attempt_id");
     let path: Vec<Vec<u8>> = DERIVATION_PATH_DEFAULT.iter().map(|p| p.to_vec()).collect();
     let ceremony_result = run_fresh_anchor_ceremony(root.clone(), path, fee_rate).await;
+
+    // ── THE RESERVATION MAY HAVE BEEN SUPERSEDED WHILE WE AWAITED. ──
+    //
+    // (P0.3.1.) If an explicit stale-recovery act has since superseded this
+    // ceremony's reservation, this invocation no longer holds the root and
+    // MUST NOT write ANY state for it — not Signed, not Failed — because a
+    // fresh ceremony may already be Reserved, Signed, or even Broadcast
+    // under a DIFFERENT attempt_id, and clobbering that with this stale
+    // ceremony's own outcome is exactly the stranding/duplication this whole
+    // state machine exists to prevent.
+    let still_holds_reservation =
+        ANCHOR_ATTEMPTS.with(|a| reservation_matches(&root, &attempt_id, &a.borrow()));
+    if !still_holds_reservation {
+        return Err(format!(
+            "ANCHOR_RESERVATION_SUPERSEDED: this ceremony's reservation for root {root} was recovered \
+             or superseded while awaiting — refusing to persist its outcome"
+        ));
+    }
 
     let (txid, raw_tx, inputs) = match ceremony_result {
         Ok(v) => v,
         Err(e) => {
             // Nothing was signed. Record a truthful failed state — Failed is
             // not Reserved/Signed, so this releases the root's exclusivity
-            // and permits a controlled retry; nothing was ever spent.
+            // and permits a controlled retry; nothing was ever spent. The
+            // reservation guard above already confirmed this ceremony still
+            // holds root, so this insert can only overwrite its OWN entry.
             ANCHOR_ATTEMPTS.with(|a| {
                 a.borrow_mut().insert(root.clone(), AnchorAttemptState::Failed { reason: e.clone() });
             });
