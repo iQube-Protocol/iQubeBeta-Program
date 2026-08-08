@@ -533,7 +533,17 @@ fn p01_caller_is_captured_before_the_first_await() {
     let src = canister_src_without_comments();
     let fn_idx = src.find("pub async fn create_and_broadcast_anchor").expect("entry point must exist");
     let body = &src[fn_idx..];
-    let caller_idx = body.find("ic_cdk::caller()").expect("the entry point must capture the caller");
+    // Matches BOTH `ic_cdk::caller()` (CDK 0.13) and `ic_cdk::api::msg_caller()`
+    // (CDK 0.20+). The 0.20 migration renamed it, and this canary caught the
+    // stale needle immediately — which is the behaviour wanted: the property
+    // must be re-proven after an API change, not assumed to have survived it.
+    let caller_idx = body
+        .find("msg_caller()")
+        .or_else(|| body.find("ic_cdk::caller()"))
+        .expect(
+            "the entry point must capture the caller. If the CDK renamed this API again, verify \
+             the ordering property still holds before widening this search.",
+        );
     let authorize_idx = body.find("authorize_anchor_caller(").expect("the entry point must authorize");
     let first_await = body.find(".await").expect("the entry point performs inter-canister calls");
 
@@ -563,4 +573,70 @@ fn p01_no_implicit_network_or_key_defaults() {
         "configuration must start as None so an unconfigured canister denies rather than defaults"
     );
     assert!(src.contains("validate_anchor_config"), "init must validate its configuration");
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// TRANSPORT ISOLATION (operator transport ruling, 2026-08-08)
+// ───────────────────────────────────────────────────────────────────────────
+
+/// The Constitutional Anchor must stay on the modern, non-deprecated Bitcoin
+/// API, and must NOT be pulled back into the legacy workspace.
+///
+/// Isolation was necessary, not stylistic: `ic-cdk-executor` declares a Cargo
+/// `links` key, and Cargo allows only one package with a given `links` value in
+/// a dependency graph. Two ic-cdk majors therefore cannot cohabit, so the only
+/// way to modernise the signer without uplifting the frozen `proof_of_state`
+/// canister is a separate workspace.
+#[test]
+fn transport_uses_the_current_bitcoin_api_not_the_deprecated_facade() {
+    let src = canister_src_without_comments();
+    assert!(
+        src.contains("ic_cdk_bitcoin_canister"),
+        "the signer must use the maintained ic-cdk-bitcoin-canister crate"
+    );
+    assert!(
+        !src.contains("api::management_canister::bitcoin"),
+        "the deprecated ic_cdk::api::management_canister::bitcoin facade is back; it is the \
+         transport amendment A1 replaced"
+    );
+    // No HTTP outcall may reappear: an outcall must reach byte-identical
+    // responses across replicas to pass consensus, so a block explorer is
+    // structurally consensus-hostile AND makes a third party the arbiter of
+    // whether a constitutional anchor exists.
+    assert!(
+        !src.contains("http_request") && !src.contains("sendrawtransaction"),
+        "an HTTPS-outcall broadcast path has reappeared"
+    );
+}
+
+/// `btc_anchor_core` must never take a CDK dependency. Its freedom from one is
+/// what keeps all 19 pure tests and the rust-bitcoin oracle runnable on the
+/// host, independent of which CDK the canister links against.
+#[test]
+fn core_stays_cdk_free() {
+    // PARSES DEPENDENCY ENTRIES, NOT PROSE. A plain substring scan matched this
+    // manifest's OWN COMMENT explaining that the crate has no ic-cdk dependency
+    // — the second time in this session a canary has flagged the very text
+    // documenting the rule it enforces. Test the declaration, not the vocabulary.
+    let manifest = include_str!("../Cargo.toml");
+    let mut in_deps = false;
+    for line in manifest.lines() {
+        let t = line.trim();
+        if t.starts_with('#') || t.is_empty() {
+            continue;
+        }
+        if t.starts_with('[') {
+            in_deps = t.starts_with("[dependencies") || t.starts_with("[dev-dependencies");
+            continue;
+        }
+        if !in_deps {
+            continue;
+        }
+        let name = t.split(['=', ' ']).next().unwrap_or("").trim();
+        assert!(
+            !name.starts_with("ic-cdk") && !name.starts_with("ic_cdk"),
+            "btc_anchor_core declares the CDK dependency {name:?}. The pure Bitcoin logic must \
+             remain host-testable and independent of which CDK the canister links against."
+        );
+    }
 }

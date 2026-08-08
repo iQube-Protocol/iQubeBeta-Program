@@ -1,9 +1,12 @@
+# NOTE: btc_signer_psbt and btc_anchor_core are deliberately NOT members. They
+# live in `constitutional-anchor/`, a separate workspace on a modern ic-cdk —
+# see that manifest for why Cargo makes cohabitation impossible (`links` key on
+# ic-cdk-executor). This workspace stays on ic-cdk 0.13 so the frozen
+# proof_of_state canister is not disturbed.
 [workspace]
 resolver = "2"
 members = [
     "canisters/proof_of_state",
-    "canisters/btc_signer_psbt",
-    "canisters/btc_anchor_core",
     "canisters/cross_chain_service",
     "canisters/evm_rpc",
     "canisters/solana_signer_ed25519",

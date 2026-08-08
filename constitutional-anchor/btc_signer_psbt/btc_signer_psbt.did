@@ -3,9 +3,15 @@ type BitcoinAddress = record {
   derivation_path : vec blob;
   address : text;
 };
+// Deployment-time configuration. Every field is REQUIRED — there are no
+// defaults, because the previous build's implicit `Testnet` + `test_key_1`
+// would have signed mainnet value with a key the subnet can rotate.
 type InitArg = record {
+  // "key_1" (production) | "test_key_1" | "dfx_test_key"
   ecdsa_key_name : text;
+  // "mainnet" | "testnet"
   network : text;
+  // The proof_of_state canister permitted to request anchoring.
   authorized_pos_principal : principal;
 };
 type Result = variant { Ok : text; Err : text };

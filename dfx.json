@@ -5,38 +5,88 @@
       "type": "rust",
       "package": "cross_chain_service",
       "candid": "canisters/cross_chain_service/cross_chain_service.did",
-      "build": ["cargo", "build", "--target", "wasm32-unknown-unknown", "--release", "-p", "cross_chain_service"]
+      "build": [
+        "cargo",
+        "build",
+        "--target",
+        "wasm32-unknown-unknown",
+        "--release",
+        "-p",
+        "cross_chain_service"
+      ]
     },
     "evm_rpc": {
       "type": "rust",
       "package": "evm_rpc",
       "candid": "canisters/evm_rpc/evm_rpc.did",
-      "build": ["cargo", "build", "--target", "wasm32-unknown-unknown", "--release", "-p", "evm_rpc"]
+      "build": [
+        "cargo",
+        "build",
+        "--target",
+        "wasm32-unknown-unknown",
+        "--release",
+        "-p",
+        "evm_rpc"
+      ]
     },
     "btc_signer_psbt": {
       "type": "rust",
       "package": "btc_signer_psbt",
-      "candid": "canisters/btc_signer_psbt/btc_signer_psbt.did",
-      "build": ["cargo", "build", "--target", "wasm32-unknown-unknown", "--release", "-p", "btc_signer_psbt"]
+      "candid": "constitutional-anchor/btc_signer_psbt/btc_signer_psbt.did",
+      "build": [
+        "cargo",
+        "build",
+        "--manifest-path",
+        "constitutional-anchor/Cargo.toml",
+        "--target",
+        "wasm32-unknown-unknown",
+        "--release",
+        "-p",
+        "btc_signer_psbt"
+      ],
+      "wasm": "constitutional-anchor/target/wasm32-unknown-unknown/release/btc_signer_psbt.wasm"
     },
     "proof_of_state": {
       "type": "rust",
       "package": "proof_of_state",
       "candid": "canisters/proof_of_state/proof_of_state.did",
-      "build": ["cargo", "build", "--target", "wasm32-unknown-unknown", "--release", "-p", "proof_of_state"]
-    }
-    ,
+      "build": [
+        "cargo",
+        "build",
+        "--target",
+        "wasm32-unknown-unknown",
+        "--release",
+        "-p",
+        "proof_of_state"
+      ]
+    },
     "solana_signer_ed25519": {
       "type": "rust",
       "package": "solana_signer_ed25519",
       "candid": "canisters/solana_signer_ed25519/solana_signer_ed25519.did",
-      "build": ["cargo", "build", "--target", "wasm32-unknown-unknown", "--release", "-p", "solana_signer_ed25519"]
+      "build": [
+        "cargo",
+        "build",
+        "--target",
+        "wasm32-unknown-unknown",
+        "--release",
+        "-p",
+        "solana_signer_ed25519"
+      ]
     },
     "reputation_qube": {
       "type": "rust",
       "package": "reputation_qube",
       "candid": "canisters/reputation_qube/reputation_qube.did",
-      "build": ["cargo", "build", "--target", "wasm32-unknown-unknown", "--release", "-p", "reputation_qube"]
+      "build": [
+        "cargo",
+        "build",
+        "--target",
+        "wasm32-unknown-unknown",
+        "--release",
+        "-p",
+        "reputation_qube"
+      ]
     }
   },
   "networks": {
@@ -45,11 +95,15 @@
       "type": "ephemeral"
     },
     "ic": {
-      "providers": ["https://ic0.app"],
+      "providers": [
+        "https://ic0.app"
+      ],
       "type": "persistent"
     },
     "testnet": {
-      "providers": ["https://testnet.dfinity.network"],
+      "providers": [
+        "https://testnet.dfinity.network"
+      ],
       "type": "persistent"
     }
   },

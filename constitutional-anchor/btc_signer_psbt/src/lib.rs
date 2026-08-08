@@ -46,19 +46,17 @@
 //! in dependent canister source".
 
 use candid::{CandidType, Deserialize, Principal};
-use ic_cdk::{
-    init, post_upgrade, pre_upgrade, query, update,
-    api::management_canister::{
-        bitcoin::{
-            bitcoin_get_current_fee_percentiles, bitcoin_get_utxos, bitcoin_send_transaction,
-            BitcoinNetwork, GetCurrentFeePercentilesRequest, GetUtxosRequest, SendTransactionRequest,
-        },
-        ecdsa::{
-            ecdsa_public_key, sign_with_ecdsa, EcdsaCurve, EcdsaKeyId, EcdsaPublicKeyArgument,
-            SignWithEcdsaArgument,
-        },
-    },
+use ic_cdk::{init, post_upgrade, pre_upgrade, query, update};
+// CURRENT, NON-DEPRECATED TRANSPORT (operator amendment A1 + transport ruling).
+// `ic_cdk::api::management_canister::bitcoin` is the deprecated facade; these
+// are the maintained crates. Isolating the signer in its own workspace is what
+// made this reachable without uplifting the frozen proof_of_state canister.
+use ic_cdk_bitcoin_canister::{
+    bitcoin_get_current_fee_percentiles, bitcoin_get_utxos, bitcoin_send_transaction,
+    GetCurrentFeePercentilesRequest, GetUtxosRequest, NetworkInRequest as BitcoinNetwork, SendTransactionRequest,
 };
+use ic_cdk_management_canister::{ecdsa_public_key, sign_with_ecdsa};
+use ic_management_canister_types::{EcdsaCurve, EcdsaKeyId, EcdsaPublicKeyArgs, SignWithEcdsaArgs};
 use std::collections::HashMap;
 
 // The pure Bitcoin construction lives in its own rlib so it is testable on the
@@ -225,7 +223,7 @@ fn key_id() -> Result<EcdsaKeyId, String> {
 
 /// Fetch this canister's own compressed secp256k1 public key.
 async fn own_pubkey(derivation_path: Vec<Vec<u8>>) -> Result<Vec<u8>, String> {
-    let (res,) = ecdsa_public_key(EcdsaPublicKeyArgument {
+    let res = ecdsa_public_key(&EcdsaPublicKeyArgs {
         canister_id: None,
         derivation_path,
         key_id: key_id()?,
@@ -348,7 +346,7 @@ async fn sign_transaction(
     let mut sigs = Vec::with_capacity(tx.inputs.len());
     for idx in 0..tx.inputs.len() {
         let sighash = bip143_sighash_p2wpkh(&tx, idx, &h160)?;
-        let (sig,) = sign_with_ecdsa(SignWithEcdsaArgument {
+        let sig = sign_with_ecdsa(&SignWithEcdsaArgs {
             message_hash: sighash.to_vec(),
             derivation_path: path.clone(),
             key_id: key_id()?,
@@ -373,7 +371,7 @@ async fn sign_transaction(
 /// computed from the transaction's own bytes.
 async fn broadcast_transaction(raw_tx: String) -> Result<String, String> {
     let bytes = validate_raw_tx_hex(&raw_tx)?;
-    bitcoin_send_transaction(SendTransactionRequest { transaction: bytes.clone(), network: ic_network()? })
+    bitcoin_send_transaction(&SendTransactionRequest { transaction: bytes.clone(), network: ic_network()? })
         .await
         .map_err(|e| format!("bitcoin_send_transaction rejected the transaction: {e:?}"))?;
 
@@ -413,7 +411,7 @@ async fn broadcast_transaction(raw_tx: String) -> Result<String, String> {
 #[update]
 pub async fn create_and_broadcast_anchor(data_hash: String, fee_rate: u64) -> Result<String, String> {
     // ── FIRST STATEMENT. NOTHING MAY PRECEDE THIS. ──
-    let caller = ic_cdk::caller().to_text();
+    let caller = ic_cdk::api::msg_caller().to_text();
     let cfg = config()?;
     authorize_anchor_caller(&caller, &cfg)?;
 
@@ -425,7 +423,7 @@ pub async fn create_and_broadcast_anchor(data_hash: String, fee_rate: u64) -> Re
     let network = config()?.network;
     let address = p2wpkh_address(&pubkey, network)?;
 
-    let (utxo_res,) = bitcoin_get_utxos(GetUtxosRequest {
+    let utxo_res = bitcoin_get_utxos(&GetUtxosRequest {
         address: address.clone(),
         network: ic_network()?,
         filter: None,
@@ -444,8 +442,12 @@ pub async fn create_and_broadcast_anchor(data_hash: String, fee_rate: u64) -> Re
         .utxos
         .iter()
         .map(|u| {
-            let mut txid = u.outpoint.txid.clone();
-            txid.reverse(); // management canister returns consensus order
+            // `Txid` is a typed newtype over 32 bytes in CONSENSUS order;
+            // Bitcoin displays txids reversed, and `prev_txid_le` in
+            // btc_anchor_core reverses again on serialisation. Getting this
+            // wrong would spend a different outpoint than intended.
+            let mut txid = u.outpoint.txid.as_ref().to_vec();
+            txid.reverse();
             UTXO { txid: hex::encode(txid), vout: u.outpoint.vout, amount: u.value, script_pubkey: vec![] }
         })
         .collect();
@@ -455,7 +457,7 @@ pub async fn create_and_broadcast_anchor(data_hash: String, fee_rate: u64) -> Re
     let signed = sign_transaction(unsigned, path).await?;
 
     let bytes = hex::decode(&signed.raw_tx).map_err(|e| format!("assembled raw_tx is not hex: {e}"))?;
-    bitcoin_send_transaction(SendTransactionRequest { transaction: bytes, network: ic_network()? })
+    bitcoin_send_transaction(&SendTransactionRequest { transaction: bytes, network: ic_network()? })
         .await
         .map_err(|e| format!("bitcoin_send_transaction rejected the anchor: {e:?}"))?;
 
@@ -465,11 +467,11 @@ pub async fn create_and_broadcast_anchor(data_hash: String, fee_rate: u64) -> Re
 
 async fn median_fee_rate() -> Option<u64> {
     let network = ic_network().ok()?;
-    let (p,) = bitcoin_get_current_fee_percentiles(GetCurrentFeePercentilesRequest { network })
+    let p = bitcoin_get_current_fee_percentiles(&GetCurrentFeePercentilesRequest { network })
         .await
         .ok()?;
     // Percentiles are millisatoshi/vB; index 50 is the median.
-    p.get(50).map(|m| (m / 1000).max(1))
+    p.get(50).map(|m| (u64::from(*m) / 1000).max(1))
 }
 
 #[query]

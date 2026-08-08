@@ -1,0 +1,41 @@
+[package]
+name = "btc_signer_psbt"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+candid = "0.10"
+# PINNED, NOT INHERITED (operator transport ruling, 2026-08-08).
+#
+# The root workspace stays on ic-cdk 0.13 because proof_of_state's deployed
+# instance (n2hhv) holds active legacy state and is under a standing freeze.
+# Uplifting the whole workspace to satisfy the signer would drag the frozen
+# canister's source along for no reason of its own.
+#
+# ic-cdk-bitcoin-canister 0.2 is the current, non-deprecated Bitcoin API and
+# requires a modern CDK. Isolating the version here is the smallest change that
+# gets the signer onto it. btc_anchor_core stays CDK-free entirely, so none of
+# this reaches the pure Bitcoin logic or its tests.
+ic-cdk = "0.20"
+ic-cdk-bitcoin-canister = "0.2"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+hex = "0.4"
+sha2 = "0.10"
+ripemd = "0.1"
+bech32 = "0.9"
+btc_anchor_core = { path = "../btc_anchor_core" }
+ic-cdk-management-canister = "0.1.1"
+ic-management-canister-types = "0.7"
+
+[dev-dependencies]
+futures = "0.3"
+# (bech32/ripemd promoted to real dependencies — address derivation needs them.)
+# Acceptance-test only. BT-4 must DECODE the derived address rather than guess
+# at its shape: a structural check on charset/length passed or failed depending
+# on where the last '1' happened to fall in the hex payload, i.e. on the test
+# pubkey's bytes rather than on the address being valid. A canary that passes
+# by accident is worse than none.

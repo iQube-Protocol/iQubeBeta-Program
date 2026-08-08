@@ -1,0 +1,35 @@
+# ─── CONSTITUTIONAL ANCHOR — a dedicated workspace ──────────────────────────
+#
+# WHY THIS IS SEPARATE (operator transport ruling, 2026-08-08).
+#
+# The signer must use `ic-cdk-bitcoin-canister` 0.2, the current non-deprecated
+# Bitcoin API, which requires ic-cdk 0.20. The root workspace is pinned to
+# ic-cdk 0.13 because `proof_of_state`'s deployed instance (n2hhv) holds active
+# legacy state under a standing freeze.
+#
+# Pinning the signer's ic-cdk inside the root workspace was tried first, per the
+# ruling, and is IMPOSSIBLE — not merely awkward. `ic-cdk-executor` declares a
+# Cargo `links` key, and Cargo permits only ONE package with a given `links`
+# value anywhere in a dependency graph:
+#
+#   package `ic-cdk-executor` links to the native library `ic-cdk async
+#   executor` but it conflicts with a previous package which links to [it] as
+#   well … Only one package in the dependency graph may specify the same links
+#   value.
+#
+# DFINITY set that deliberately (the value's own text points at their
+# "links-pin" troubleshooting doc). So two ic-cdk majors cannot share a graph by
+# construction, and a separate workspace is the only way to modernise the signer
+# without uplifting the frozen canister.
+#
+# The isolation is narrow on purpose: `btc_anchor_core` stays entirely CDK-free,
+# so all 19 pure Bitcoin tests and the rust-bitcoin oracle are unaffected by
+# which CDK the canister crate links against.
+[workspace]
+resolver = "2"
+members = ["btc_signer_psbt", "btc_anchor_core"]
+
+[profile.release]
+opt-level = 'z'
+lto = true
+codegen-units = 1
