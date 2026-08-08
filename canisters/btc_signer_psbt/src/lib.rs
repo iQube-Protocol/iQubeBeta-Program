@@ -45,9 +45,9 @@
 //! literal. See AGENTS.md, "Production canister principals are never hard-coded
 //! in dependent canister source".
 
-use candid::{CandidType, Deserialize};
+use candid::{CandidType, Deserialize, Principal};
 use ic_cdk::{
-    query, update,
+    init, post_upgrade, pre_upgrade, query, update,
     api::management_canister::{
         bitcoin::{
             bitcoin_get_current_fee_percentiles, bitcoin_get_utxos, bitcoin_send_transaction,
@@ -115,26 +115,112 @@ pub struct SignedTransaction {
     pub fee: u64,
 }
 
+/// Deployment-time configuration. Every field is REQUIRED — there are no
+/// defaults, because the previous build's implicit `Testnet` + `test_key_1`
+/// would have signed mainnet value with a key the subnet can rotate.
+#[derive(CandidType, Deserialize, Clone, Debug)]
+pub struct InitArg {
+    /// "mainnet" | "testnet"
+    pub network: String,
+    /// "key_1" (production) | "test_key_1" | "dfx_test_key"
+    pub ecdsa_key_name: String,
+    /// The proof_of_state canister permitted to request anchoring.
+    pub authorized_pos_principal: Principal,
+}
+
 thread_local! {
     static ADDRESSES: std::cell::RefCell<HashMap<String, BitcoinAddress>> = std::cell::RefCell::new(HashMap::new());
     static TRANSACTIONS: std::cell::RefCell<HashMap<String, SignedTransaction>> = std::cell::RefCell::new(HashMap::new());
-    /// Set at init; NOT a compile-time constant, so the same wasm can serve
-    /// testnet and mainnet and the choice is visible in the deployment record.
-    static NETWORK: std::cell::RefCell<BtcNetwork> = std::cell::RefCell::new(BtcNetwork::Testnet);
+    /// NOT initialised to a usable default. Until `init` runs, every anchoring
+    /// request is denied — an uninitialised signer must be inert, not permissive.
+    static CONFIG: std::cell::RefCell<Option<AnchorConfig>> = std::cell::RefCell::new(None);
 }
 
-const KEY_NAME: &str = "test_key_1";
 const DERIVATION_PATH_DEFAULT: &[&[u8]] = &[b"constitutional-anchor-v2"];
 
-fn ic_network() -> BitcoinNetwork {
-    NETWORK.with(|n| match *n.borrow() {
+fn parse_network(s: &str) -> Result<BtcNetwork, String> {
+    match s.to_ascii_lowercase().as_str() {
+        "mainnet" => Ok(BtcNetwork::Mainnet),
+        "testnet" => Ok(BtcNetwork::Testnet),
+        other => Err(format!("unknown network {other:?}; expected \"mainnet\" or \"testnet\"")),
+    }
+}
+
+fn config() -> Result<AnchorConfig, String> {
+    CONFIG.with(|c| {
+        c.borrow().clone().ok_or_else(|| {
+            "canister is not configured — it was deployed without init arguments and denies all \
+             anchoring requests"
+                .to_string()
+        })
+    })
+}
+
+fn apply_config(arg: InitArg) {
+    let cfg = AnchorConfig {
+        network: parse_network(&arg.network).unwrap_or_else(|e| ic_cdk::trap(&e)),
+        ecdsa_key_name: arg.ecdsa_key_name,
+        authorized_pos_principal: Some(arg.authorized_pos_principal.to_text()),
+    };
+    // TRAP rather than start misconfigured. A signer that comes up with a
+    // rejected configuration is worse than one that fails to come up at all.
+    if let Err(e) = validate_anchor_config(&cfg) {
+        ic_cdk::trap(&format!("refusing to initialise: {e}"));
+    }
+    CONFIG.with(|c| *c.borrow_mut() = Some(cfg));
+}
+
+#[init]
+fn init(arg: InitArg) {
+    apply_config(arg);
+}
+
+#[pre_upgrade]
+fn pre_upgrade() {
+    let cfg = CONFIG.with(|c| c.borrow().clone());
+    ic_cdk::storage::stable_save((cfg.map(|c| InitArg {
+        network: match c.network { BtcNetwork::Mainnet => "mainnet".into(), BtcNetwork::Testnet => "testnet".into() },
+        ecdsa_key_name: c.ecdsa_key_name,
+        authorized_pos_principal: Principal::from_text(
+            c.authorized_pos_principal.unwrap_or_default(),
+        )
+        .unwrap_or(Principal::anonymous()),
+    }),))
+    .expect("config must survive upgrade");
+}
+
+#[post_upgrade]
+fn post_upgrade() {
+    if let Ok((Some(arg),)) = ic_cdk::storage::stable_restore::<(Option<InitArg>,)>() {
+        apply_config(arg);
+    }
+}
+
+/// Read the configuration. No secrets — the principal and key NAME are public
+/// facts about the deployment, and publishing them is what makes the
+/// authorization boundary auditable from outside.
+#[query]
+pub fn get_config() -> Option<(String, String, String)> {
+    CONFIG.with(|c| {
+        c.borrow().as_ref().map(|cfg| {
+            (
+                match cfg.network { BtcNetwork::Mainnet => "mainnet".to_string(), BtcNetwork::Testnet => "testnet".to_string() },
+                cfg.ecdsa_key_name.clone(),
+                cfg.authorized_pos_principal.clone().unwrap_or_else(|| "(unset)".to_string()),
+            )
+        })
+    })
+}
+
+fn ic_network() -> Result<BitcoinNetwork, String> {
+    Ok(match config()?.network {
         BtcNetwork::Mainnet => BitcoinNetwork::Mainnet,
         BtcNetwork::Testnet => BitcoinNetwork::Testnet,
     })
 }
 
-fn key_id() -> EcdsaKeyId {
-    EcdsaKeyId { curve: EcdsaCurve::Secp256k1, name: KEY_NAME.to_string() }
+fn key_id() -> Result<EcdsaKeyId, String> {
+    Ok(EcdsaKeyId { curve: EcdsaCurve::Secp256k1, name: config()?.ecdsa_key_name })
 }
 
 /// Fetch this canister's own compressed secp256k1 public key.
@@ -142,22 +228,21 @@ async fn own_pubkey(derivation_path: Vec<Vec<u8>>) -> Result<Vec<u8>, String> {
     let (res,) = ecdsa_public_key(EcdsaPublicKeyArgument {
         canister_id: None,
         derivation_path,
-        key_id: key_id(),
+        key_id: key_id()?,
     })
     .await
     .map_err(|e| format!("ecdsa_public_key failed: {e:?}"))?;
     Ok(res.public_key)
 }
 
-#[update]
-pub async fn get_btc_address(derivation_path: Vec<Vec<u8>>) -> Result<BitcoinAddress, String> {
+async fn get_btc_address(derivation_path: Vec<Vec<u8>>) -> Result<BitcoinAddress, String> {
     let path = if derivation_path.is_empty() {
         DERIVATION_PATH_DEFAULT.iter().map(|p| p.to_vec()).collect()
     } else {
         derivation_path
     };
     let public_key = own_pubkey(path.clone()).await?;
-    let network = NETWORK.with(|n| *n.borrow());
+    let network = config()?.network;
     let address = p2wpkh_address(&public_key, network)?;
 
     let btc_address = BitcoinAddress { address: address.clone(), public_key, derivation_path: path };
@@ -171,8 +256,7 @@ pub async fn get_btc_address(derivation_path: Vec<Vec<u8>>) -> Result<BitcoinAdd
 /// value 0. Output 1 is change back to our own P2WPKH script. The root is
 /// hex-decoded to 32 raw bytes before being pushed (§A3) — pushing the ASCII
 /// hex would commit to a different value.
-#[update]
-pub async fn create_anchor_transaction(
+async fn create_anchor_transaction(
     utxos: Vec<UTXO>,
     data_hash: String,
     fee_rate: u64,
@@ -192,7 +276,7 @@ pub async fn create_anchor_transaction(
     let pubkey = own_pubkey(DERIVATION_PATH_DEFAULT.iter().map(|p| p.to_vec()).collect()).await?;
     let h160 = hash160(&pubkey);
     let change_script = p2wpkh_script(&h160);
-    let network = NETWORK.with(|n| *n.borrow());
+    let network = config()?.network;
 
     Ok(UnsignedTransaction {
         inputs: utxos
@@ -244,8 +328,7 @@ fn to_pure_tx(tx: &UnsignedTransaction) -> Result<Tx, String> {
     })
 }
 
-#[update]
-pub async fn sign_transaction(
+async fn sign_transaction(
     unsigned: UnsignedTransaction,
     derivation_path: Vec<Vec<u8>>,
 ) -> Result<SignedTransaction, String> {
@@ -268,7 +351,7 @@ pub async fn sign_transaction(
         let (sig,) = sign_with_ecdsa(SignWithEcdsaArgument {
             message_hash: sighash.to_vec(),
             derivation_path: path.clone(),
-            key_id: key_id(),
+            key_id: key_id()?,
         })
         .await
         .map_err(|e| format!("sign_with_ecdsa failed for input {idx}: {e:?}"))?;
@@ -288,10 +371,9 @@ pub async fn sign_transaction(
 /// its own input — when txid parsing failed. There is no such branch here: the
 /// only `Ok` is one the network produced, and the txid returned is the one
 /// computed from the transaction's own bytes.
-#[update]
-pub async fn broadcast_transaction(raw_tx: String) -> Result<String, String> {
+async fn broadcast_transaction(raw_tx: String) -> Result<String, String> {
     let bytes = validate_raw_tx_hex(&raw_tx)?;
-    bitcoin_send_transaction(SendTransactionRequest { transaction: bytes.clone(), network: ic_network() })
+    bitcoin_send_transaction(SendTransactionRequest { transaction: bytes.clone(), network: ic_network()? })
         .await
         .map_err(|e| format!("bitcoin_send_transaction rejected the transaction: {e:?}"))?;
 
@@ -309,19 +391,43 @@ pub async fn broadcast_transaction(raw_tx: String) -> Result<String, String> {
 /// REFUSES rather than fabricating. The predecessor substituted a UTXO with an
 /// all-zero txid and proceeded — manufacturing the appearance of an anchor with
 /// nothing to spend.
+/// THE ONLY AUTHORIZED ENTRY POINT (P0.1, independent review 2026-08-08).
+///
+/// `create_anchor_transaction`, `sign_transaction` and `broadcast_transaction`
+/// are private. They were public `#[update]` methods, which meant ANY principal
+/// on the IC could make this canister sign with its threshold key, spend its
+/// UTXOs, or broadcast arbitrary bytes. A signer with an open signing surface
+/// is not a signer; it is a signing oracle for whoever asks.
+///
+/// ── THE CALLER IS CAPTURED BEFORE THE FIRST AWAIT ──────────────────────────
+///
+/// This is not stylistic. On the IC, `ic_cdk::caller()` returns whoever is
+/// replying AT THAT POINT IN EXECUTION. After an inter-canister `await` — and
+/// this function awaits `ecdsa_public_key`, `bitcoin_get_utxos`,
+/// `sign_with_ecdsa` and `bitcoin_send_transaction` — it returns the MANAGEMENT
+/// CANISTER, not the originator. An authorization check placed after any await
+/// would therefore compare the management canister against the configured
+/// proof_of_state principal, fail, and be "fixed" by whoever debugged it into
+/// something that passes for everyone. Capturing first makes that mistake
+/// impossible to make quietly.
 #[update]
 pub async fn create_and_broadcast_anchor(data_hash: String, fee_rate: u64) -> Result<String, String> {
+    // ── FIRST STATEMENT. NOTHING MAY PRECEDE THIS. ──
+    let caller = ic_cdk::caller().to_text();
+    let cfg = config()?;
+    authorize_anchor_caller(&caller, &cfg)?;
+
     // Validate the commitment BEFORE spending anything.
     let _ = op_return_script(&data_hash)?;
 
     let path: Vec<Vec<u8>> = DERIVATION_PATH_DEFAULT.iter().map(|p| p.to_vec()).collect();
     let pubkey = own_pubkey(path.clone()).await?;
-    let network = NETWORK.with(|n| *n.borrow());
+    let network = config()?.network;
     let address = p2wpkh_address(&pubkey, network)?;
 
     let (utxo_res,) = bitcoin_get_utxos(GetUtxosRequest {
         address: address.clone(),
-        network: ic_network(),
+        network: ic_network()?,
         filter: None,
     })
     .await
@@ -349,7 +455,7 @@ pub async fn create_and_broadcast_anchor(data_hash: String, fee_rate: u64) -> Re
     let signed = sign_transaction(unsigned, path).await?;
 
     let bytes = hex::decode(&signed.raw_tx).map_err(|e| format!("assembled raw_tx is not hex: {e}"))?;
-    bitcoin_send_transaction(SendTransactionRequest { transaction: bytes, network: ic_network() })
+    bitcoin_send_transaction(SendTransactionRequest { transaction: bytes, network: ic_network()? })
         .await
         .map_err(|e| format!("bitcoin_send_transaction rejected the anchor: {e:?}"))?;
 
@@ -358,7 +464,8 @@ pub async fn create_and_broadcast_anchor(data_hash: String, fee_rate: u64) -> Re
 }
 
 async fn median_fee_rate() -> Option<u64> {
-    let (p,) = bitcoin_get_current_fee_percentiles(GetCurrentFeePercentilesRequest { network: ic_network() })
+    let network = ic_network().ok()?;
+    let (p,) = bitcoin_get_current_fee_percentiles(GetCurrentFeePercentilesRequest { network })
         .await
         .ok()?;
     // Percentiles are millisatoshi/vB; index 50 is the median.

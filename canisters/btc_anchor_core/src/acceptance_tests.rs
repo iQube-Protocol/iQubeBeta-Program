@@ -328,3 +328,239 @@ fn regex_lite_find_principal(code: &str) -> Option<String> {
     }
     None
 }
+
+// ───────────────────────────────────────────────────────────────────────────
+// P0.1 — the signing surface is closed (independent review, 2026-08-08)
+// ───────────────────────────────────────────────────────────────────────────
+//
+// WAS RED: `sign_transaction`, `broadcast_transaction` and
+// `create_anchor_transaction` were public `#[update]` methods with no caller
+// check. Any principal on the IC could make this canister sign with its
+// threshold key, spend its UTXOs, or broadcast arbitrary bytes.
+
+fn cfg_with(principal: Option<&str>) -> AnchorConfig {
+    AnchorConfig {
+        network: BtcNetwork::Testnet,
+        ecdsa_key_name: "test_key_1".to_string(),
+        authorized_pos_principal: principal.map(|s| s.to_string()),
+    }
+}
+
+const POS_PRINCIPAL: &str = "n2hhv-aaaaa-aaaas-qccza-cai";
+
+#[test]
+fn p01_unauthorized_principal_cannot_cause_signing_or_spending() {
+    let cfg = cfg_with(Some(POS_PRINCIPAL));
+    // A stranger — the shape of the attack this closes.
+    let err = authorize_anchor_caller("sp5ye-2qaaa-aaaao-qkqla-cai", &cfg).unwrap_err();
+    assert!(err.contains("not the authorized"), "refusal must name the mismatch: {err}");
+    assert!(err.contains("refusing to sign"), "refusal must state what was refused: {err}");
+}
+
+#[test]
+fn p01_anonymous_principal_is_never_authorized() {
+    assert!(authorize_anchor_caller("2vxsx-fae", &cfg_with(Some(POS_PRINCIPAL))).is_err());
+    // Even if someone configures it, the config itself is rejected.
+    assert!(validate_anchor_config(&cfg_with(Some("2vxsx-fae"))).is_err());
+}
+
+#[test]
+fn p01_unconfigured_canister_denies_everyone_rather_than_allowing_everyone() {
+    // Fail-closed. The opposite default would make a misconfigured deployment
+    // sign for whoever asked first.
+    let err = authorize_anchor_caller(POS_PRINCIPAL, &cfg_with(None)).unwrap_err();
+    assert!(err.contains("denies all anchoring requests"), "{err}");
+}
+
+#[test]
+fn p01_the_configured_pos_principal_is_authorized() {
+    assert!(authorize_anchor_caller(POS_PRINCIPAL, &cfg_with(Some(POS_PRINCIPAL))).is_ok());
+}
+
+#[test]
+fn p01_mainnet_may_not_be_configured_with_a_test_ecdsa_key() {
+    let mut cfg = cfg_with(Some(POS_PRINCIPAL));
+    cfg.network = BtcNetwork::Mainnet;
+    cfg.ecdsa_key_name = "test_key_1".to_string();
+    let err = validate_anchor_config(&cfg).unwrap_err();
+    assert!(err.contains("MAINNET"), "{err}");
+    assert!(err.contains("unrecoverable"), "the refusal must say what is at stake: {err}");
+
+    cfg.ecdsa_key_name = "key_1".to_string();
+    assert!(validate_anchor_config(&cfg).is_ok(), "a production key on mainnet is permitted");
+
+    // An empty key name has no safe default.
+    cfg.ecdsa_key_name = String::new();
+    assert!(validate_anchor_config(&cfg).is_err());
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// INDEPENDENT ORACLE (independent review, 2026-08-08)
+// ───────────────────────────────────────────────────────────────────────────
+//
+// Every test above validates our serialiser against our own understanding of
+// the format. That is circular: a consistent misreading of the spec would pass
+// all of them. `rust-bitcoin` is an independent implementation maintained by
+// people who never saw this code, so making IT parse and agree is evidence of
+// a different kind.
+//
+// This is the same discipline as CAP-1 one layer down: the question is not
+// "does our code accept our output" but "does something we did not write
+// recognise it".
+
+#[test]
+fn oracle_rust_bitcoin_parses_our_transaction_and_agrees_on_the_txid() {
+    use bitcoin::consensus::Decodable;
+
+    let tx = sample_tx();
+    let (our_txid, raw_hex) = assemble_signed(&tx, &[vec![0x42u8; 64]], &pubkey()).unwrap();
+    let raw = hex::decode(&raw_hex).unwrap();
+
+    let parsed = bitcoin::Transaction::consensus_decode(&mut raw.as_slice())
+        .expect("rust-bitcoin must be able to parse our serialised transaction");
+
+    // Structure agrees.
+    assert_eq!(parsed.input.len(), tx.inputs.len(), "input count");
+    assert_eq!(parsed.output.len(), tx.outputs.len(), "output count");
+    assert_eq!(parsed.version.0, 2, "version");
+    assert_eq!(parsed.lock_time.to_consensus_u32(), 0, "locktime");
+
+    // THE TXID. Computed by an implementation that shares none of our code.
+    assert_eq!(
+        parsed.compute_txid().to_string(),
+        our_txid,
+        "rust-bitcoin derives a different txid from the same bytes — our txid derivation is wrong"
+    );
+
+    // THE COMMITMENT. rust-bitcoin must independently classify output 0 as a
+    // valid OP_RETURN carrying exactly our 32-byte root.
+    let commitment = &parsed.output[0];
+    assert!(commitment.script_pubkey.is_op_return(), "output 0 must be recognised as OP_RETURN");
+    assert_eq!(commitment.value.to_sat(), 0, "an OP_RETURN output carries no value");
+    let pushed: Vec<u8> = commitment.script_pubkey.as_bytes()[2..].to_vec();
+    assert_eq!(hex::encode(&pushed), ROOT_HEX, "the pushed bytes must be the root");
+
+    // THE CHANGE OUTPUT must be a valid witness program rust-bitcoin can spend.
+    assert!(
+        parsed.output[1].script_pubkey.is_p2wpkh(),
+        "output 1 must be recognised as P2WPKH — otherwise the change is unspendable"
+    );
+
+    // SEGWIT: the witness must be present and carry two items.
+    assert_eq!(parsed.input[0].witness.len(), 2, "witness is [signature, pubkey]");
+}
+
+#[test]
+fn oracle_rust_bitcoin_agrees_our_address_matches_our_change_script() {
+    use std::str::FromStr;
+
+    let addr_str = p2wpkh_address(&pubkey(), BtcNetwork::Testnet).unwrap();
+    let addr = bitcoin::Address::from_str(&addr_str)
+        .expect("rust-bitcoin must parse our address")
+        .require_network(bitcoin::Network::Testnet)
+        .expect("address must belong to the network we said it did");
+
+    // The address and the script we put in the transaction must denote the
+    // same output — if they diverge, change goes somewhere we cannot spend.
+    let ours = p2wpkh_script(&hash160(&pubkey()));
+    assert_eq!(
+        addr.script_pubkey().as_bytes(),
+        ours.as_slice(),
+        "our address and our change scriptPubKey disagree"
+    );
+}
+
+// ───────────────────────────────────────────────────────────────────────────
+// P0.1 — structural guarantees about the canister's exported surface
+// ───────────────────────────────────────────────────────────────────────────
+
+fn canister_src_without_comments() -> String {
+    include_str!("../../btc_signer_psbt/src/lib.rs")
+        .lines()
+        .filter(|l| {
+            let t = l.trim_start();
+            !t.starts_with("//") && !t.starts_with("//!")
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// The signing, spending and broadcasting primitives must NOT be callable from
+/// outside. They were `#[update]` in the first Phase B build, which let any
+/// principal on the IC drive the threshold key.
+#[test]
+fn p01_signing_primitives_are_not_exported() {
+    let src = canister_src_without_comments();
+    for dangerous in ["sign_transaction", "broadcast_transaction", "create_anchor_transaction", "get_btc_address"] {
+        // Find the function definition and check what precedes it.
+        let needle = format!("async fn {dangerous}(");
+        let idx = src.find(&needle).unwrap_or_else(|| panic!("{dangerous} not found in canister source"));
+        let preceding = &src[idx.saturating_sub(120)..idx];
+        assert!(
+            !preceding.contains("#[update]") && !preceding.contains("#[query]"),
+            "{dangerous} is an exported canister method. It signs, spends or broadcasts, so \
+             exporting it hands those capabilities to every principal on the IC."
+        );
+    }
+}
+
+/// Exactly one update method may exist, and it must be the authorized anchor
+/// entry point. A second update is a second door.
+#[test]
+fn p01_exactly_one_update_method_is_exported() {
+    let src = canister_src_without_comments();
+    let updates = src.matches("#[update]").count();
+    assert_eq!(
+        updates, 1,
+        "expected exactly one exported update method (create_and_broadcast_anchor); found {updates}"
+    );
+    let idx = src.find("#[update]").unwrap();
+    assert!(
+        src[idx..idx + 200].contains("create_and_broadcast_anchor"),
+        "the single update method must be the authorized anchor entry point"
+    );
+}
+
+/// THE CALLER MUST BE CAPTURED BEFORE THE FIRST AWAIT.
+///
+/// `ic_cdk::caller()` returns whoever is replying at that point in execution.
+/// After an inter-canister await it is the MANAGEMENT CANISTER, not the
+/// originator — so an authorization check placed after any await silently
+/// checks the wrong principal. This canary pins the ordering that makes the
+/// check meaningful.
+#[test]
+fn p01_caller_is_captured_before_the_first_await() {
+    let src = canister_src_without_comments();
+    let fn_idx = src.find("pub async fn create_and_broadcast_anchor").expect("entry point must exist");
+    let body = &src[fn_idx..];
+    let caller_idx = body.find("ic_cdk::caller()").expect("the entry point must capture the caller");
+    let authorize_idx = body.find("authorize_anchor_caller(").expect("the entry point must authorize");
+    let first_await = body.find(".await").expect("the entry point performs inter-canister calls");
+
+    assert!(
+        caller_idx < first_await,
+        "ic_cdk::caller() is read AFTER an await, where it returns the management canister rather \
+         than the originator — the authorization check would compare the wrong principal"
+    );
+    assert!(
+        authorize_idx < first_await,
+        "authorization happens after an await; by then any work the caller was not entitled to may \
+         already have begun"
+    );
+}
+
+/// The canister must not come up usable without explicit configuration, and
+/// must not carry a compiled-in ECDSA key name.
+#[test]
+fn p01_no_implicit_network_or_key_defaults() {
+    let src = canister_src_without_comments();
+    assert!(
+        !src.contains(r#"const KEY_NAME: &str = "test_key_1""#),
+        "the ECDSA key name is compiled in; it must be a deployment decision"
+    );
+    assert!(
+        src.contains("static CONFIG") && src.contains("RefCell::new(None)"),
+        "configuration must start as None so an unconfigured canister denies rather than defaults"
+    );
+    assert!(src.contains("validate_anchor_config"), "init must validate its configuration");
+}

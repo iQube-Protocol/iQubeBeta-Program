@@ -24,4 +24,5 @@ ripemd = "0.1"
 bech32 = "0.9"
 
 [dev-dependencies]
+bitcoin = { version = "0.32", default-features = false, features = ["std"] }
 futures = "0.3"

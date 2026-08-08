@@ -484,3 +484,93 @@ pub fn validate_raw_tx_hex(raw: &str) -> Result<Vec<u8>, String> {
 #[cfg(test)]
 #[path = "acceptance_tests.rs"]
 mod acceptance_tests;
+
+// ─── GOVERNED CONFIGURATION AND AUTHORIZATION ───────────────────────────────
+//
+// P0.1/P0.2 (independent review, 2026-08-08). Two boundary defects were found
+// in the first Phase B build:
+//
+//   * `sign_transaction`, `broadcast_transaction` and `create_anchor_transaction`
+//     were unrestricted public `#[update]` methods. ANY principal could make the
+//     canister sign with its threshold key, spend its UTXOs, or broadcast
+//     arbitrary bytes. A signer whose signing surface is open is not a signer,
+//     it is an oracle for anyone who asks.
+//   * network and ECDSA key name were implicit defaults (`Testnet`,
+//     `test_key_1`), so a mainnet deployment would silently sign with a test
+//     key — keys that carry no security guarantee and can be rotated by the
+//     subnet.
+//
+// Both decisions are made HERE, in pure code, so they are host-testable and so
+// the rule that is tested is the rule that runs.
+
+/// Everything about this canister's behaviour that must be a deliberate,
+/// recorded deployment decision rather than a compiled-in default.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct AnchorConfig {
+    pub network: BtcNetwork,
+    /// `dfx_test_key` (local), `test_key_1` (testnet), `key_1` (production).
+    pub ecdsa_key_name: String,
+    /// Textual principal of the `proof_of_state` canister permitted to request
+    /// anchoring. `None` means NOT CONFIGURED, which denies everyone — the
+    /// canister is inert until governance names its caller.
+    pub authorized_pos_principal: Option<String>,
+}
+
+/// The only ECDSA key names that carry a production security guarantee.
+pub const PRODUCTION_ECDSA_KEYS: &[&str] = &["key_1"];
+
+/// Authorize an anchoring request.
+///
+/// FAILS CLOSED in every ambiguous case. An unset principal denies rather than
+/// allows, because the failure mode of the opposite default is that a
+/// misconfigured deployment silently accepts anyone's request to spend its
+/// funds and sign with its key.
+///
+/// The caller MUST be captured before the first `await`. On the IC,
+/// `ic_cdk::caller()` returns whoever is replying at that point in execution —
+/// after an inter-canister await that is the management canister, not the
+/// originator. Authorizing on a post-await caller would check the wrong
+/// principal entirely, and would pass.
+pub fn authorize_anchor_caller(caller: &str, cfg: &AnchorConfig) -> Result<(), String> {
+    // The anonymous principal is never a legitimate constitutional actor.
+    if caller == "2vxsx-fae" {
+        return Err(
+            "the anonymous principal may not request anchoring: signing and spending require a \
+             named, authorized caller"
+                .to_string(),
+        );
+    }
+    match cfg.authorized_pos_principal.as_deref() {
+        None => Err(
+            "no authorized proof_of_state principal is configured — this canister denies all \
+             anchoring requests until governance names its caller. Denying is deliberate: the \
+             alternative default would let a misconfigured deployment sign for anyone."
+                .to_string(),
+        ),
+        Some(expected) if expected == caller => Ok(()),
+        Some(expected) => Err(format!(
+            "caller {caller} is not the authorized proof_of_state principal ({expected}); \
+             refusing to sign, spend or broadcast"
+        )),
+    }
+}
+
+/// Reject configurations that would sign production value with a test key, or
+/// name a network without naming a key at all.
+pub fn validate_anchor_config(cfg: &AnchorConfig) -> Result<(), String> {
+    if cfg.ecdsa_key_name.trim().is_empty() {
+        return Err("ecdsa_key_name must be set explicitly; there is no safe default".to_string());
+    }
+    if cfg.network == BtcNetwork::Mainnet && !PRODUCTION_ECDSA_KEYS.contains(&cfg.ecdsa_key_name.as_str()) {
+        return Err(format!(
+            "refusing a Bitcoin MAINNET configuration with ECDSA key {:?}: only {:?} carry a \
+             production guarantee. A test key can be rotated by the subnet, which would make every \
+             address derived from it — and any funds at those addresses — unrecoverable.",
+            cfg.ecdsa_key_name, PRODUCTION_ECDSA_KEYS
+        ));
+    }
+    if cfg.authorized_pos_principal.as_deref() == Some("2vxsx-fae") {
+        return Err("the anonymous principal may not be configured as the authorized caller".to_string());
+    }
+    Ok(())
+}
