@@ -33,15 +33,7 @@
       "type": "custom",
       "candid": "constitutional-anchor/btc_signer_psbt/btc_signer_psbt.did",
       "build": [
-        "cargo",
-        "build",
-        "--manifest-path",
-        "constitutional-anchor/Cargo.toml",
-        "--target",
-        "wasm32-unknown-unknown",
-        "--release",
-        "-p",
-        "btc_signer_psbt"
+        "cargo build --manifest-path constitutional-anchor/Cargo.toml --target wasm32-unknown-unknown --release -p btc_signer_psbt"
       ],
       "wasm": "constitutional-anchor/target/wasm32-unknown-unknown/release/btc_signer_psbt.wasm"
     },
