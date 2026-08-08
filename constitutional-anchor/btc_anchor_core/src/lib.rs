@@ -637,7 +637,18 @@ pub enum AnchorAttemptState {
     /// The network accepted the transaction. Terminal and successful — any
     /// further request for this root returns this txid and does nothing
     /// else. The constitutional event already happened.
-    Broadcast { txid: String },
+    ///
+    /// `inputs` is retained deliberately (P0.4, operator ruling, 2026-08-08).
+    /// `Broadcast` releasing exclusivity used to discard them, which let a
+    /// LATER root fetch and spend an outpoint a broadcast-but-not-yet-
+    /// confirmed anchor was still using — a Bitcoin outpoint belongs to
+    /// whichever root's transaction is out on the network, confirmed or
+    /// not, until it either confirms or is definitively replaced; it must
+    /// never become selectable for a second root merely because the first
+    /// reached `Broadcast`. See `spent_outpoints`/`select_unspent_inputs`,
+    /// which read this field to build the durable used-outpoint exclusion
+    /// set every fresh ceremony consults.
+    Broadcast { txid: String, inputs: Vec<AnchorInput> },
     /// The ceremony ended before a signed transaction existed (no UTXOs,
     /// signing itself failed, a transport error before broadcast). Terminal
     /// for THIS attempt, but — unlike `Broadcast` — it releases the root: a
@@ -658,8 +669,11 @@ pub enum AnchorDecision {
     /// spend nothing.
     ReturnBroadcast(String),
     /// This root already reached `Signed`. Rebroadcast `raw_tx` exactly as
-    /// stored; do not rebuild.
-    Rebroadcast { txid: String, raw_tx: String },
+    /// stored; do not rebuild. `inputs` carries over from `Signed` so the
+    /// caller can retain them on the `Broadcast` it writes after a
+    /// successful rebroadcast (P0.4) — this path must preserve the same
+    /// used-outpoint record a fresh ceremony's `Broadcast` write does.
+    Rebroadcast { txid: String, raw_tx: String, inputs: Vec<AnchorInput> },
     /// A DIFFERENT root currently holds an active (`Reserved` or `Signed`)
     /// attempt. Refuse — only one Bitcoin spend ceremony may be active across
     /// all roots at a time.
@@ -717,9 +731,13 @@ pub fn decide_anchor_attempt(
 ) -> AnchorDecision {
     if let Some(state) = attempts.get(root) {
         match state {
-            AnchorAttemptState::Broadcast { txid } => return AnchorDecision::ReturnBroadcast(txid.clone()),
-            AnchorAttemptState::Signed { txid, raw_tx, .. } => {
-                return AnchorDecision::Rebroadcast { txid: txid.clone(), raw_tx: raw_tx.clone() };
+            AnchorAttemptState::Broadcast { txid, .. } => return AnchorDecision::ReturnBroadcast(txid.clone()),
+            AnchorAttemptState::Signed { txid, raw_tx, inputs } => {
+                return AnchorDecision::Rebroadcast {
+                    txid: txid.clone(),
+                    raw_tx: raw_tx.clone(),
+                    inputs: inputs.clone(),
+                };
             }
             AnchorAttemptState::Reserved { .. } => {
                 return AnchorDecision::InProgress { active_root: root.to_string() };
@@ -802,6 +820,74 @@ pub fn decide_stale_recovery(
         )),
         None => Err(format!("root {root} has no anchor attempt on record — there is nothing to recover")),
     }
+}
+
+// ─── DURABLE SPENT-INPUT EXCLUSION — P0.4 (operator ruling, 2026-08-08) ────
+//
+// "`Broadcast` currently releases exclusivity and discards the inputs. A
+// later root can therefore fetch an input already used by a broadcast-but-
+// unconfirmed anchor... A Bitcoin outpoint associated with one
+// constitutional root must never become selectable for another root merely
+// because the first transaction has reached `Broadcast`."
+//
+// `Broadcast` now retains `inputs` (see the variant's docs above) precisely
+// so this exclusion set can be built from durable state — the same map
+// `pre_upgrade`/`post_upgrade` already persists — rather than a second,
+// separately-maintained record that could drift from it.
+
+/// Every raw Bitcoin outpoint already committed to a `Signed` or
+/// `Broadcast` anchor attempt, for ANY root.
+///
+/// Both states are included, not just `Broadcast`: `Signed` means a valid
+/// transaction spending these outpoints already exists and may still be
+/// (re)broadcast at any time (see `decide_anchor_attempt`'s `Rebroadcast`
+/// path) — treating it as available would risk a second root's transaction
+/// confirming first and leaving the first root's now-invalid spend to fail
+/// or, worse, racing it. `Reserved` and `Failed` contribute nothing: neither
+/// has ever produced a transaction that spends anything.
+pub fn spent_outpoints(
+    attempts: &std::collections::BTreeMap<String, AnchorAttemptState>,
+) -> std::collections::BTreeSet<(String, u32)> {
+    attempts
+        .values()
+        .flat_map(|state| match state {
+            AnchorAttemptState::Signed { inputs, .. } | AnchorAttemptState::Broadcast { inputs, .. } => {
+                inputs.iter().map(|i| (i.txid_hex.clone(), i.vout)).collect::<Vec<_>>()
+            }
+            AnchorAttemptState::Reserved { .. } | AnchorAttemptState::Failed { .. } => Vec::new(),
+        })
+        .collect()
+}
+
+/// Exclude every candidate UTXO already committed to a `Signed`/`Broadcast`
+/// attempt for ANY root (including, degenerately, the requesting root
+/// itself — though `decide_anchor_attempt` never lets a fresh ceremony start
+/// while its OWN root is already Signed/Broadcast, so in practice this only
+/// ever excludes a DIFFERENT root's inputs), and refuse truthfully — rather
+/// than silently falling back to a spent input — if nothing usable remains.
+///
+/// This is a REFUSAL, not a filter that merely returns empty: an empty `Ok`
+/// would be indistinguishable, at the call site, from "there was genuinely
+/// nothing to exclude", and the two failures call for different remedies
+/// (wait for the in-flight anchor to confirm vs. fund a new address) — an
+/// operator diagnosing a stuck ceremony must be told which one actually
+/// happened.
+pub fn select_unspent_inputs(
+    candidates: Vec<AnchorInput>,
+    attempts: &std::collections::BTreeMap<String, AnchorAttemptState>,
+) -> Result<Vec<AnchorInput>, String> {
+    let spent = spent_outpoints(attempts);
+    let available: Vec<AnchorInput> =
+        candidates.into_iter().filter(|c| !spent.contains(&(c.txid_hex.clone(), c.vout))).collect();
+    if available.is_empty() {
+        return Err(
+            "ALL_UTXOS_ALREADY_RESERVED: every candidate UTXO is already committed to a Signed or \
+             Broadcast anchor attempt for a different constitutional root — refusing to reuse an \
+             input already spoken for rather than falling back to it"
+                .to_string(),
+        );
+    }
+    Ok(available)
 }
 
 /// Convert a millisatoshi/vB fee rate — the unit

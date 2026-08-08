@@ -54,6 +54,7 @@ use ic_cdk::{init, post_upgrade, pre_upgrade, query, update};
 use ic_cdk_bitcoin_canister::{
     bitcoin_get_current_fee_percentiles, bitcoin_get_utxos, bitcoin_send_transaction,
     GetCurrentFeePercentilesRequest, GetUtxosRequest, NetworkInRequest as BitcoinNetwork, SendTransactionRequest,
+    UtxosFilterInRequest,
 };
 use ic_cdk_management_canister::{ecdsa_public_key, sign_with_ecdsa};
 use ic_management_canister_types::{EcdsaCurve, EcdsaKeyId, EcdsaPublicKeyArgs, SignWithEcdsaArgs};
@@ -443,6 +444,21 @@ async fn broadcast_transaction(raw_tx: String) -> Result<String, String> {
 /// REFUSES rather than fabricating. The predecessor substituted a UTXO with an
 /// all-zero txid and proceeded — manufacturing the appearance of an anchor
 /// with nothing to spend.
+///
+/// ── DURABLE SPENT-INPUT EXCLUSION (P0.4, operator ruling, 2026-08-08) ──────
+///
+/// `bitcoin_get_utxos` only knows what is on the Bitcoin network — it has no
+/// idea a `Signed` or `Broadcast` anchor attempt for a DIFFERENT root has
+/// already claimed one of these outpoints, because from the network's point
+/// of view a broadcast-but-unconfirmed spend hasn't happened yet either.
+/// `select_unspent_inputs` (btc_anchor_core, pure, host-tested) is where that
+/// durable, canister-side knowledge is consulted: every fresh ceremony
+/// excludes whatever `spent_outpoints` reads out of `ANCHOR_ATTEMPTS` before
+/// ever handing a candidate UTXO to `create_anchor_transaction`. Requesting
+/// `MinConfirmations(1)` rather than `filter: None` closes the companion
+/// half of the same concern — an unconfirmed FUNDING UTXO can vanish from a
+/// reorg, which is exactly the kind of "looked spendable, then wasn't" gap
+/// this ceremony must not build a spend on top of.
 async fn run_fresh_anchor_ceremony(
     root: String,
     path: Vec<Vec<u8>>,
@@ -455,7 +471,7 @@ async fn run_fresh_anchor_ceremony(
     let utxo_res = bitcoin_get_utxos(&GetUtxosRequest {
         address: address.clone(),
         network: ic_network()?,
-        filter: None,
+        filter: Some(UtxosFilterInRequest::MinConfirmations(1)),
     })
     .await
     .map_err(|e| format!("bitcoin_get_utxos failed: {e:?}"))?;
@@ -467,7 +483,7 @@ async fn run_fresh_anchor_ceremony(
         ));
     }
 
-    let utxos: Vec<UTXO> = utxo_res
+    let all_candidates: Vec<UTXO> = utxo_res
         .utxos
         .iter()
         .map(|u| {
@@ -480,10 +496,20 @@ async fn run_fresh_anchor_ceremony(
             UTXO { txid: hex::encode(txid), vout: u.outpoint.vout, amount: u.value, script_pubkey: vec![] }
         })
         .collect();
-    let anchor_inputs: Vec<AnchorInput> = utxos
+    let candidate_inputs: Vec<AnchorInput> = all_candidates
         .iter()
         .map(|u| AnchorInput { txid_hex: u.txid.clone(), vout: u.vout, value: u.amount })
         .collect();
+
+    // Exclude anything already committed to a DIFFERENT root's Signed or
+    // Broadcast attempt. Refuses truthfully (ALL_UTXOS_ALREADY_RESERVED)
+    // rather than falling back to a spent input if nothing remains.
+    let anchor_inputs =
+        ANCHOR_ATTEMPTS.with(|a| select_unspent_inputs(candidate_inputs, &a.borrow()))?;
+    let available: std::collections::BTreeSet<(String, u32)> =
+        anchor_inputs.iter().map(|i| (i.txid_hex.clone(), i.vout)).collect();
+    let utxos: Vec<UTXO> =
+        all_candidates.into_iter().filter(|u| available.contains(&(u.txid.clone(), u.vout))).collect();
 
     let effective_fee_rate = if fee_rate > 0 {
         fee_rate
@@ -590,7 +616,7 @@ pub async fn create_and_broadcast_anchor(data_hash: String, fee_rate: u64) -> Re
                  spend for root {root}"
             ));
         }
-        AnchorDecision::Rebroadcast { txid, raw_tx } => {
+        AnchorDecision::Rebroadcast { txid, raw_tx, inputs } => {
             // Same root, already signed. REBROADCAST THE EXACT SAME BYTES —
             // never refetch UTXOs or build a second spend for a root that
             // already has a valid signed transaction.
@@ -604,8 +630,12 @@ pub async fn create_and_broadcast_anchor(data_hash: String, fee_rate: u64) -> Re
                     // rebroadcast it via this same branch, never rebuild.
                     format!("rebroadcast of the existing signed transaction for root {root} failed: {e:?}")
                 })?;
+            // P0.4: retain `inputs` on Broadcast — carried over from Signed
+            // via AnchorDecision::Rebroadcast — so this outpoint stays
+            // excluded from every OTHER root's fresh ceremony even after
+            // this root leaves Signed.
             ANCHOR_ATTEMPTS.with(|a| {
-                a.borrow_mut().insert(root.clone(), AnchorAttemptState::Broadcast { txid: txid.clone() });
+                a.borrow_mut().insert(root.clone(), AnchorAttemptState::Broadcast { txid: txid.clone(), inputs });
             });
             return Ok(txid);
         }
@@ -653,8 +683,10 @@ pub async fn create_and_broadcast_anchor(data_hash: String, fee_rate: u64) -> Re
 
     // ── PERSIST Signed BEFORE invoking bitcoin_send_transaction. ──
     ANCHOR_ATTEMPTS.with(|a| {
-        a.borrow_mut()
-            .insert(root.clone(), AnchorAttemptState::Signed { txid: txid.clone(), raw_tx: raw_tx.clone(), inputs });
+        a.borrow_mut().insert(
+            root.clone(),
+            AnchorAttemptState::Signed { txid: txid.clone(), raw_tx: raw_tx.clone(), inputs: inputs.clone() },
+        );
     });
 
     let bytes = hex::decode(&raw_tx).map_err(|e| format!("assembled raw_tx is not hex: {e}"))?;
@@ -666,8 +698,12 @@ pub async fn create_and_broadcast_anchor(data_hash: String, fee_rate: u64) -> Re
             format!("bitcoin_send_transaction rejected the anchor: {e:?}")
         })?;
 
+    // P0.4: retain `inputs` on Broadcast so this outpoint stays in
+    // `spent_outpoints`'s exclusion set for every OTHER root's fresh
+    // ceremony — releasing exclusivity here must not also discard the
+    // record of what this root actually spent.
     ANCHOR_ATTEMPTS.with(|a| {
-        a.borrow_mut().insert(root.clone(), AnchorAttemptState::Broadcast { txid: txid.clone() });
+        a.borrow_mut().insert(root.clone(), AnchorAttemptState::Broadcast { txid: txid.clone(), inputs });
     });
 
     Ok(txid)

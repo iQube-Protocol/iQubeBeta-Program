@@ -636,6 +636,14 @@ fn reserved_state(attempt_id: &str, reserved_at_ns: u64) -> AnchorAttemptState {
     AnchorAttemptState::Reserved { attempt_id: attempt_id.to_string(), reserved_at_ns }
 }
 
+fn broadcast_state(txid: &str, inputs: Vec<AnchorInput>) -> AnchorAttemptState {
+    AnchorAttemptState::Broadcast { txid: txid.to_string(), inputs }
+}
+
+fn one_input(txid_hex: &str, vout: u32, value: u64) -> AnchorInput {
+    AnchorInput { txid_hex: txid_hex.to_string(), vout, value }
+}
+
 /// Two concurrent anchor attempts for DIFFERENT roots cannot both proceed —
 /// the second must be refused, naming which root is active, whether the first
 /// is merely `Reserved` or has already progressed to `Signed`.
@@ -663,7 +671,7 @@ fn p03_concurrent_reservation_for_a_different_root_is_rejected() {
 
     // Once root-a reaches Broadcast (terminal, successful), it is no longer
     // active, and root-b may reserve freely.
-    attempts.insert("root-a".to_string(), AnchorAttemptState::Broadcast { txid: "txid-a".to_string() });
+    attempts.insert("root-a".to_string(), broadcast_state("txid-a", vec![one_input(&"aa".repeat(32), 0, 100_000)]));
     assert_eq!(
         decide_anchor_attempt("root-b", &attempts),
         AnchorDecision::Reserve,
@@ -677,7 +685,7 @@ fn p03_concurrent_reservation_for_a_different_root_is_rejected() {
 #[test]
 fn p03_broadcast_is_never_silently_replayed() {
     let mut attempts: BTreeMap<String, AnchorAttemptState> = BTreeMap::new();
-    attempts.insert("root-a".to_string(), AnchorAttemptState::Broadcast { txid: "abc123".to_string() });
+    attempts.insert("root-a".to_string(), broadcast_state("abc123", vec![one_input(&"bb".repeat(32), 0, 100_000)]));
 
     let decision = decide_anchor_attempt("root-a", &attempts);
     assert_eq!(
@@ -701,9 +709,15 @@ fn p03_same_root_signed_resumes_by_rebroadcasting_never_builds_a_second_spend() 
     let decision = decide_anchor_attempt("root-a", &attempts);
     assert_eq!(
         decision,
-        AnchorDecision::Rebroadcast { txid: "txid-a".to_string(), raw_tx: "deadbeef".to_string() },
-        "recovery from Signed must resume with the SAME raw_tx, never Reserve — Reserve would let the \
-         canister fetch a fresh UTXO set and build a distinct, competing spend for the same root"
+        AnchorDecision::Rebroadcast {
+            txid: "txid-a".to_string(),
+            raw_tx: "deadbeef".to_string(),
+            inputs: vec![one_input(&"aa".repeat(32), 0, 100_000)],
+        },
+        "recovery from Signed must resume with the SAME raw_tx AND the SAME inputs (P0.4: needed so \
+         the caller can retain them on the Broadcast it writes after rebroadcasting), never Reserve \
+         — Reserve would let the canister fetch a fresh UTXO set and build a distinct, competing \
+         spend for the same root"
     );
     // The one property that matters most, stated as its own assertion: this
     // must never be Reserve, under any circumstance, for a Signed root.
@@ -755,7 +769,7 @@ fn p03_a_failure_before_signing_permits_a_controlled_retry() {
     // to Broadcast first (not left Reserved from above) so THIS assertion
     // tests Failed's non-exclusivity specifically, not a leftover active
     // reservation from the previous checks.
-    attempts.insert("root-a".to_string(), AnchorAttemptState::Broadcast { txid: "txid-a".to_string() });
+    attempts.insert("root-a".to_string(), broadcast_state("txid-a", vec![one_input(&"aa".repeat(32), 0, 100_000)]));
     attempts.insert("root-b".to_string(), AnchorAttemptState::Failed { reason: "transport error".to_string() });
     assert_eq!(
         decide_anchor_attempt("root-c", &attempts),
@@ -881,12 +895,13 @@ fn p03_1_stale_reservation_recovery_cannot_let_the_superseded_attempt_later_sign
 }
 
 /// `AnchorAttemptState` — including the evidence needed for recovery, the
-/// exact signed `raw_tx` and the inputs it spends — must survive the SAME
-/// Candid encode/decode round trip that `ic_cdk::storage::stable_save`/
-/// `stable_restore` performs across a canister upgrade. This is the pure,
-/// host-testable half of "anchor-attempt state and the evidence needed for
-/// recovery must survive canister upgrades" — the stable-memory call itself
-/// needs a replica, but the encoding it depends on does not.
+/// exact signed `raw_tx` and the inputs it spends, AND (P0.4) the inputs a
+/// `Broadcast` attempt spent — must survive the SAME Candid encode/decode
+/// round trip that `ic_cdk::storage::stable_save`/`stable_restore` performs
+/// across a canister upgrade. This is the pure, host-testable half of
+/// "anchor-attempt state and the evidence needed for recovery must survive
+/// canister upgrades" — the stable-memory call itself needs a replica, but
+/// the encoding it depends on does not.
 #[test]
 fn p03_anchor_attempt_state_survives_a_stable_memory_round_trip() {
     use candid::{Decode, Encode};
@@ -894,7 +909,7 @@ fn p03_anchor_attempt_state_survives_a_stable_memory_round_trip() {
     let states = vec![
         reserved_state("attempt-a", 1_700_000_000_000_000_000),
         signed_state("txid-a", "deadbeef"),
-        AnchorAttemptState::Broadcast { txid: "txid-b".to_string() },
+        broadcast_state("txid-b", vec![one_input(&"cc".repeat(32), 1, 250_000)]),
         AnchorAttemptState::Failed { reason: "bitcoin_get_utxos failed: transport error".to_string() },
     ];
 
@@ -947,6 +962,149 @@ fn p03_msat_per_vb_rounds_up_never_down() {
 }
 
 // ───────────────────────────────────────────────────────────────────────────
+// P0.4 — durable spent-input exclusion (operator ruling, 2026-08-08)
+// ───────────────────────────────────────────────────────────────────────────
+//
+// WAS RED against the pre-P0.4 baseline, where `Broadcast` carried only a
+// `txid` and discarded `inputs` entirely — there was no way for a fresh
+// ceremony to know which outpoints a broadcast-but-unconfirmed anchor was
+// still using, so `spent_outpoints`/`select_unspent_inputs` (below) simply
+// could not exist: they read the `inputs` field this change adds.
+
+/// A `Broadcast` root's inputs must be excluded from what a DIFFERENT root's
+/// fresh ceremony may spend — the transaction is out on the network and may
+/// yet confirm; a second root spending the same outpoint would either fail
+/// or race it.
+#[test]
+fn p04_broadcast_roots_inputs_are_unavailable_to_a_different_root() {
+    let spent_input = one_input(&"aa".repeat(32), 0, 100_000);
+    let free_input = one_input(&"bb".repeat(32), 1, 50_000);
+
+    let mut attempts: BTreeMap<String, AnchorAttemptState> = BTreeMap::new();
+    attempts.insert("root-a".to_string(), broadcast_state("txid-a", vec![spent_input.clone()]));
+
+    let available = select_unspent_inputs(vec![spent_input.clone(), free_input.clone()], &attempts)
+        .expect("the free input alone must still be fundable");
+    assert_eq!(
+        available,
+        vec![free_input.clone()],
+        "root-a's Broadcast input must be excluded from root-b's candidate set, leaving only the \
+         unrelated free UTXO"
+    );
+    assert!(
+        !available.contains(&spent_input),
+        "a Bitcoin outpoint committed to root-a's Broadcast attempt must never become selectable \
+         for a different root merely because root-a reached Broadcast"
+    );
+}
+
+/// The same exclusion holds for `Signed` — a valid transaction spending
+/// these inputs already exists and may still be (re)broadcast at any time,
+/// so it is exactly as unavailable to a different root as a `Broadcast` one.
+#[test]
+fn p04_signed_roots_inputs_are_unavailable_to_a_different_root() {
+    let spent_input = one_input(&"aa".repeat(32), 0, 100_000);
+    let free_input = one_input(&"cc".repeat(32), 2, 75_000);
+
+    let mut attempts: BTreeMap<String, AnchorAttemptState> = BTreeMap::new();
+    attempts.insert("root-a".to_string(), signed_state("txid-a", "deadbeef"));
+    // signed_state's own input is one_input("aa"*32, 0, 100_000) — reuse the
+    // same outpoint here so this test's `spent_input` genuinely collides
+    // with it rather than coincidentally matching by construction.
+    assert_eq!(spent_input, one_input(&"aa".repeat(32), 0, 100_000));
+
+    let available = select_unspent_inputs(vec![spent_input.clone(), free_input.clone()], &attempts)
+        .expect("the free input alone must still be fundable");
+    assert_eq!(
+        available,
+        vec![free_input],
+        "root-a's Signed input must be excluded from root-b's candidate set — a Signed transaction \
+         may still be rebroadcast, so its inputs are exactly as spoken-for as a Broadcast one's"
+    );
+}
+
+/// Free, unrelated UTXOs — never mentioned by any Signed/Broadcast attempt —
+/// must remain selectable regardless of how many OTHER attempts exist.
+#[test]
+fn p04_unrelated_free_utxos_remain_selectable() {
+    let mut attempts: BTreeMap<String, AnchorAttemptState> = BTreeMap::new();
+    attempts.insert(
+        "root-a".to_string(),
+        broadcast_state("txid-a", vec![one_input(&"aa".repeat(32), 0, 100_000)]),
+    );
+    attempts.insert("root-b".to_string(), signed_state("txid-b", "beefdead"));
+
+    let free_1 = one_input(&"dd".repeat(32), 0, 10_000);
+    let free_2 = one_input(&"ee".repeat(32), 3, 20_000);
+    let available = select_unspent_inputs(vec![free_1.clone(), free_2.clone()], &attempts)
+        .expect("UTXOs unrelated to any Signed/Broadcast attempt must remain fundable");
+    assert_eq!(available, vec![free_1, free_2], "no unrelated input may be excluded");
+}
+
+/// If EVERY candidate UTXO is already committed to a Signed/Broadcast
+/// attempt, the ceremony must refuse truthfully — never silently fall back
+/// to a spent input, and never return an empty `Ok` that would be
+/// indistinguishable from "there was nothing to exclude in the first place".
+#[test]
+fn p04_refuses_truthfully_when_all_candidate_utxos_are_already_reserved() {
+    let only_input = one_input(&"aa".repeat(32), 0, 100_000);
+    let mut attempts: BTreeMap<String, AnchorAttemptState> = BTreeMap::new();
+    attempts.insert("root-a".to_string(), broadcast_state("txid-a", vec![only_input.clone()]));
+
+    let err = select_unspent_inputs(vec![only_input], &attempts)
+        .err()
+        .expect("refusing is the point — falling back to a spent input would risk a double-spend");
+    assert!(
+        err.contains("ALL_UTXOS_ALREADY_RESERVED"),
+        "the refusal must name itself distinctly from a plain 'no UTXOs' error, so an operator can \
+         tell 'wait for confirmation' apart from 'fund a new address': {err}"
+    );
+}
+
+/// P0.4 must not regress the P0.3/P0.3.1 guarantees it sits beside: a
+/// same-root `Signed` retry still rebroadcasts the identical stored bytes
+/// (and, now, the identical stored inputs) rather than rebuilding anything.
+#[test]
+fn p04_same_root_signed_retry_still_rebroadcasts_identical_bytes() {
+    let mut attempts: BTreeMap<String, AnchorAttemptState> = BTreeMap::new();
+    attempts.insert("root-a".to_string(), signed_state("txid-a", "deadbeef"));
+
+    assert_eq!(
+        decide_anchor_attempt("root-a", &attempts),
+        AnchorDecision::Rebroadcast {
+            txid: "txid-a".to_string(),
+            raw_tx: "deadbeef".to_string(),
+            inputs: vec![one_input(&"aa".repeat(32), 0, 100_000)],
+        },
+        "a same-root Signed retry must still rebroadcast the EXACT stored raw_tx and inputs, \
+         unaffected by P0.4's addition of inputs to Broadcast"
+    );
+}
+
+/// State round-trip (P0.3's guarantee) must extend to `Broadcast`'s newly
+/// retained `inputs` — this is re-asserted here, alongside the exclusion
+/// tests, so P0.4's own core data addition is pinned by name in this
+/// section rather than only incidentally by the P0.3 round-trip test above.
+#[test]
+fn p04_state_round_trip_preserves_broadcast_inputs() {
+    use candid::{Decode, Encode};
+
+    let inputs = vec![one_input(&"aa".repeat(32), 0, 100_000), one_input(&"bb".repeat(32), 2, 50_000)];
+    let state = broadcast_state("txid-a", inputs.clone());
+
+    let bytes = Encode!(&state).expect("Broadcast{inputs} must Candid-encode");
+    let round_tripped: AnchorAttemptState =
+        Decode!(&bytes, AnchorAttemptState).expect("Broadcast{inputs} must Candid-decode");
+    assert_eq!(round_tripped, state, "Broadcast's retained inputs must round-trip losslessly");
+    match round_tripped {
+        AnchorAttemptState::Broadcast { inputs: round_tripped_inputs, .. } => {
+            assert_eq!(round_tripped_inputs, inputs, "the exact spent outpoints must survive the round trip")
+        }
+        other => panic!("expected Broadcast, got {other:?}"),
+    }
+}
+
+// ───────────────────────────────────────────────────────────────────────────
 // P0.3 — structural guarantee about the canister's own wiring
 // ───────────────────────────────────────────────────────────────────────────
 
@@ -982,6 +1140,31 @@ fn p03_signed_state_is_persisted_before_the_fresh_ceremony_broadcasts() {
          otherwise a trap, upgrade, or ambiguous resumption between signing and broadcast leaves no \
          durable record of which transaction to rebroadcast, and a retry could sign a second, \
          competing spend instead"
+    );
+}
+
+/// FUNDING UTXOs MUST BE REQUESTED WITH AT LEAST ONE CONFIRMATION.
+///
+/// (P0.4, operator ruling, 2026-08-08: "request fresh funding UTXOs with at
+/// least one confirmation rather than `filter: None`.") An unconfirmed UTXO
+/// can vanish from a reorg — building a spend on top of one would risk a
+/// signed, possibly-broadcast anchor transaction whose input silently
+/// ceases to exist. This cannot be host-tested by calling the real
+/// `bitcoin_get_utxos` (that needs a replica), so it is pinned structurally,
+/// the same way `p03_signed_state_is_persisted_before_the_fresh_ceremony_
+/// broadcasts` pins an ordering: by finding the marker in the
+/// comment-stripped source.
+#[test]
+fn p04_funding_utxos_are_requested_with_at_least_one_confirmation() {
+    let src = canister_src_without_comments();
+    assert!(
+        src.contains("UtxosFilterInRequest::MinConfirmations(1)"),
+        "GetUtxosRequest must request at least one confirmation via \
+         UtxosFilterInRequest::MinConfirmations(1) — an unconfirmed UTXO can vanish from a reorg"
+    );
+    assert!(
+        !src.contains("filter: None"),
+        "the get_utxos request's filter must never be literally None"
     );
 }
 
