@@ -30,8 +30,7 @@
       ]
     },
     "btc_signer_psbt": {
-      "type": "rust",
-      "package": "btc_signer_psbt",
+      "type": "custom",
       "candid": "constitutional-anchor/btc_signer_psbt/btc_signer_psbt.did",
       "build": [
         "cargo",
